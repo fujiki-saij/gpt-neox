@@ -421,6 +421,81 @@ class NeoXArgsLRScheduler(NeoXArgsTemplate):
     Use checkpoint to set the values of the scheduler (learning rate, warmup iterations, minimum learning rate, maximum number of iterations, and decay style from checkpoint and ignore input arguments.
     """
 
+@dataclass
+class NeoXArgsPPO(NeoXArgsTemplate):
+    """
+    PPO Training Arguments
+
+    References:
+    - Schulman et al. "Proximal Policy Optimization Algorithms". 2017.
+        https://arxiv.org/abs/1707.06347
+    - D. Ziegler et al. "Fine-Tuning Language Models from Human Preferences". 2020.
+        https://arxiv.org/abs/1909.08593
+    - Leandro von Werra. "TRL: Train transformer language models with reinforcement learning".
+        https://github.com/lvwerra/trl
+    """
+
+    noptepochs: int = 4
+    """
+    Number of optimization epochs per batch of samples. For reference, this is
+    the `noptepochs` hparam found in the original OpenAI implementation.
+    """
+
+    nminibatches: int = 1
+    """
+    Number of minibatches used for the optimization update.
+    - Mini-batch Updates (ppo2/ppo2.py#L157-L166) Code-level Optimizations
+        During the learning phase of the vectorized architecture, the PPO implementation shuffles the indices of the training data of size N∗M and breaks it into mini-batches to compute the gradient and update the policy.
+        Some common mis-implementations include 1) always using the whole batch for the update, and 2) implementing mini-batches by randomly fetching from the training data (which does not guarantee all training data points are fetched).
+    """
+
+    vf_coef: float = 0.1
+    """
+    Value function coefficient (c₁).
+
+    NOTE: Engstrom, Ilyas, et al., (2020) find no evidence that the value function loss clipping helps with the performance. Andrychowicz, et al. (2021) suggest value function loss clipping even hurts performance (decision C13, figure 43).
+    """
+
+    gamma: float = 1.0
+    """
+    Discount factor (0 ≤ γ ≤ 1).
+    """
+
+    lam: float = 0.95
+    """
+    Generalized Advantage Estimator (GAE) lambda parameter (0 ≤ λ ≤ 1).
+    """
+
+    cliprange: float = 0.2
+    """
+    Clipping range parameter (ϵ) in PPO policy gradient loss.
+    """
+
+    cliprange_value: float = 0.2
+    """
+    Clipping range parameter (ϵᵥ) for values in the value function loss.
+    """
+
+    horizon: int = 10_000
+    """
+    Maximum number of timesteps.
+    """
+
+    kl_coef: float = 0.2
+    """
+    KL penalty coefficient (β).
+    """
+
+    use_adapt_kl_ctrl: bool = True
+    """
+    Whether to use adaptive KL control or not; otherwise, use fixed KL control.
+    """
+
+    target: float = None
+    """
+    Target KL value between new and old policies after an optimization update.
+    """
+
 
 @dataclass
 class NeoXArgsLogging(NeoXArgsTemplate):
