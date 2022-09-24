@@ -496,6 +496,10 @@ class NeoXArgsPPO(NeoXArgsTemplate):
     Target KL value between new and old policies after an optimization update.
     """
 
+    policy_temp: float = 1.0
+    """
+    Sampling temperature for rollouts.
+    """
 
 @dataclass
 class NeoXArgsLogging(NeoXArgsTemplate):
