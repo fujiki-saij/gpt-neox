@@ -445,7 +445,7 @@ def generate_samples_from_prompt(
     # generate completions
     generated_texts = []
     while True:
-        model.module.clear_cache()  # clear kv cache between batches
+        # model.module.clear_cache()  # clear kv cache between batches
 
         start_time = time.time()
         # Tokenize text, and check whether we should terminate process
@@ -477,7 +477,7 @@ def generate_samples_from_prompt(
         terminate_runs = broadcast_terminate_signal(terminate_runs)
         if terminate_runs == 1:
             return generated_texts
-
+        print_rank_0(f"Model's Context: {neox_args.tokenizer.detokenize(context_tokens)}")
         for (
             batch_context_tokens,
             batch_token_generation_start_index,
@@ -516,6 +516,8 @@ def generate_samples_from_prompt(
 
             if end_index >= start_index:
                 generated_tokens = tokens[start_index : end_index + 1]
+                # print_rank_0("generated_tokens", generated_tokens)
+                print_rank_0(f"Model's Generated Text: {neox_args.tokenizer.detokenize(generated_tokens)}")
                 try:
                     generated_text = neox_args.tokenizer.detokenize(generated_tokens)
                     message = None
