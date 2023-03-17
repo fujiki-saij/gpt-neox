@@ -62,19 +62,20 @@ class EvalHarnessAdapter(GPT2LM):
         self.tokenizer = neox_args.tokenizer
         self._device = torch.device(f"cuda:{neox_args.local_rank}")
         self._eot_token_id = neox_args.tokenizer.eod_id
-        self._max_length = neox_args.max_position_embeddings // 2
+        self._max_length = neox_args.seq_length
         self._max_gen_toks = 128
         self._vocab_size = neox_args.padded_vocab_size
 
         # parallelism args:
         self.is_main = neox_args.rank == 0
         self.is_local_main = neox_args.local_rank == 0
-        self.is_model_parallel = neox_args.model_parallel_size > 1
-        self.is_pipe_parallel = self.model.is_pipe_parallel
-        self.is_data_parallel = self.model.is_data_parallel
+        self.is_model_parallel = mpu.get_model_parallel_world_size() > 1
+        self.is_pipe_parallel = mpu.get_pipe_parallel_world_size() > 1
+        self.is_data_parallel = mpu.get_data_parallel_world_size() > 1
         self.is_last_stage = (
             True if not self.is_pipe_parallel else model.is_last_stage()
         )  # only the last stage of the pipeline model will receive the logits
+        self.model.micro_batches = neox_args.train_micro_batch_size_per_gpu
         self.dp_world_size = mpu.get_data_parallel_world_size()
         self.dp_rank = mpu.get_data_parallel_rank()
         self.dp_group = mpu.get_data_parallel_group()
@@ -173,6 +174,21 @@ class EvalHarnessAdapter(GPT2LM):
         self.model.module.train_mode()  # set back to train mode
         return reord.get_original(res)
 
+    def loglikelihood(self, requests):
+        new_reqs = []
+        for context, continuation in requests:
+            if context == "":
+                # end of text as context
+                context_enc = [self.eot_token_id]
+            else:
+                context_enc = self.tokenizer.encode(context)
+
+            continuation_enc = self.tokenizer.encode(continuation)
+
+            new_reqs.append(((context, continuation), context_enc, continuation_enc))
+
+        return self._loglikelihood_tokens(new_reqs)
+
     def _loglikelihood_tokens(self, requests, disable_tqdm=False):
         """
         In this method, the model doesn't do any generation, but just returns log likelihoods
@@ -233,6 +249,8 @@ class EvalHarnessAdapter(GPT2LM):
                 res_len += len(chunk)
 
                 if logits is not None:
+                    if self.is_model_parallel:
+                        logits = mpu.gather_from_model_parallel_region(logits)[..., :self.vocab_size]
                     multi_logits = F.log_softmax(logits, dim=-1)  # [batch, seq, vocab]
                     for (cache_key, _, _), logits, inp, inplen, cont_toks in zip(
                         chunk, multi_logits, inps, inplens, contlens
