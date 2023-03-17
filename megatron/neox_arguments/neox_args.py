@@ -168,7 +168,6 @@ class NeoXArgsModel(NeoXArgsTemplate):
     """
 
     attention_config: list = None
-
     """
     Attention configuration for gpt-neox
 
@@ -228,9 +227,9 @@ class NeoXArgsModel(NeoXArgsTemplate):
     Pad the vocab size to be divisible by this value. This is added for computational efficiency reasons.
     """
 
-    activation: Literal["gelu", "geglu", "relu", "softsign", "swish", "mish"] = "gelu"
+    activation: Literal["gelu", "geglu", "swiglu", "relu", "softsign", "swish", "mish"] = "gelu"
     """
-    Activation function to use - choose from ["gelu", "geglu", "relu", "softsign", "swish", "mish"]
+    Activation function to use - choose from ["gelu", "geglu", "swiglu", "relu", "softsign", "swish", "mish"]
     """
 
     scaled_upper_triang_masked_softmax_fusion: bool = False

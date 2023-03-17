@@ -86,11 +86,12 @@ class ParallelMLP(nn.Module):
         self.activation_type = neox_args.activation
         self.bias_gelu_fusion = neox_args.bias_gelu_fusion
 
-        # auto scale so geglu has equal parameters
-        ff_mult = 4 * 2 / 3 if self.activation_type == "geglu" else 4
+        # auto scale so GLU variants have equal parameters
+        self.use_glu = self.activation_type in ["geglu", "swiglu"]
+        ff_mult = 4 * 2 / 3 if self.use_glu else 4
         ff_dim = (
             int(ff_mult * neox_args.hidden_size) * 2
-            if self.activation_type == "geglu"
+            if self.use_glu
             else ff_mult * neox_args.hidden_size
         )
         self.dense_h_to_4h = mpu.ColumnParallelLinear(
@@ -101,7 +102,7 @@ class ParallelMLP(nn.Module):
             init_method=init_method,
             skip_bias_add=True,
         )
-        ff_dim_in = ff_dim // 2 if self.activation_type == "geglu" else ff_dim
+        ff_dim_in = ff_dim // 2 if self.use_glu else ff_dim
         # Project back to h.
         self.dense_4h_to_h = mpu.RowParallelLinear(
             neox_args=neox_args,
@@ -120,7 +121,7 @@ class ParallelMLP(nn.Module):
 
         if (
             self.activation_type == "gelu" and self.bias_gelu_fusion
-        ) or self.activation_type == "geglu":
+        ) or self.use_glu:
             intermediate_parallel = self.activation_func(
                 intermediate_parallel, bias_parallel
             )
@@ -317,6 +318,45 @@ class ParallelSelfAttention(nn.Module):
             parallel_output=parallel_output,
         )
 
+    def multi_query_attention(
+        self, query_layer, key_layer, value_layer, layer_past, attention_mask
+    ):
+        # ===================================
+        # Raw attention scores. [b, np, s, s]
+        # ===================================
+
+        # [b, np, sq, sk]
+        output_size = (
+            query_layer.size(1),
+            query_layer.size(2),
+            query_layer.size(0),
+            key_layer.size(0),
+        )
+
+        # [sq, b, np, hn] -> [sq, b * np, hn]
+        query_layer = query_layer.view(
+            output_size[2], output_size[0] * output_size[1], -1
+        )
+        # [sk, b, 1, hn] -> [b, hn, sk]
+        key_layer = key_layer.squeeze(2).permute(1, 2, 0)
+
+        # preallocating result tensor: [b * np, sq, sk]
+        matmul_input_buffer = torch.empty(
+            output_size[0] * output_size[1],
+            output_size[2],
+            output_size[3],
+            dtype=query_layer.dtype,
+            device=torch.cuda.current_device(),
+        )
+
+        matmul_result = torch.baddbmm(
+            matmul_input_buffer,
+            query_layer,
+            key_layer,
+            beta=0.0,
+            alpha=(1.0 / self.norm_factor),
+        )
+
     def attention(
         self, query_layer, key_layer, value_layer, layer_past, attention_mask
     ):
@@ -336,6 +376,7 @@ class ParallelSelfAttention(nn.Module):
         query_layer = query_layer.view(
             output_size[2], output_size[0] * output_size[1], -1
         )
+        # [sk, b, np, hn] -> [sk, b * np, hn]
         key_layer = key_layer.view(output_size[3], output_size[0] * output_size[1], -1)
 
         # preallocating result tensor: [b * np, sq, sk]

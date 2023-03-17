@@ -399,11 +399,11 @@ Model Arguments
 
 
 
-- **activation**: typing.Literal['gelu', 'geglu', 'relu', 'softsign', 'swish', 'mish']
+- **activation**: typing.Literal['gelu', 'geglu', 'swiglu', 'relu', 'softsign', 'swish', 'mish']
 
     Default = gelu
 
-    Activation function to use - choose from ["gelu", "geglu", "relu", "softsign", "swish", "mish"]
+    Activation function to use - choose from ["gelu", "geglu", "swiglu", "relu", "softsign", "swish", "mish"]
 
 
 

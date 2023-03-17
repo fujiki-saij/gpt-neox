@@ -30,7 +30,7 @@ PARAMS_TO_TEST = {
         ["layernorm", "learned", "gelu"],
         ["rmsnorm", "rotary", "relu"],
         ["scalenorm", "sinusoidal", "mish"],
-        ["layernorm", "rpe", "geglu"],
+        ["layernorm", "rpe", "geglu", "swiglu"],
         ["rmsnorm", "none", "swish"],
     ],
     "pipe_parallel_size,model_parallel_size": [[0, 1], [1, 2], [0, 2]],

@@ -28,6 +28,8 @@ def get_activation(neox_args):
     """retrieves the activation function specified in neox_args"""
     if neox_args.activation == "geglu":
         activation_func = GEGLU(neox_args=neox_args)
+    elif neox_args.activation == "swiglu":
+        activation_func = SwiGLU(neox_args=neox_args)
     elif neox_args.activation == "gelu":
         if neox_args.onnx_safe and neox_args.bias_gelu_fusion:
             raise ValueError("onnx_safe + bias_gelu_fusion not compatible")
@@ -122,10 +124,22 @@ def mish(x):
 class GEGLU(torch.nn.Module):
     def __init__(self, neox_args):
         super(GEGLU, self).__init__()
-        if neox_args.onnx_safe:
-            self.activation_func = erf_gelu
-        else:
-            self.activation_func = F.gelu
+        self.activation_func = F.gelu
+
+    def forward(self, x, bias=None):
+        x, gate = x.chunk(2, dim=-1)
+        if bias is not None:
+            bias_1, bias_2 = bias.chunk(2, dim=-1)
+            x = x + bias_1
+            gate = gate + bias_2
+        intermediate_parallel = self.activation_func(gate, approximate="tanh")
+        return intermediate_parallel * x
+
+
+class SwiGLU(torch.nn.Module):
+    def __init__(self, neox_args):
+        super(SwiGLU, self).__init__()
+        self.activation_func = swish
 
     def forward(self, x, bias=None):
         x, gate = x.chunk(2, dim=-1)
