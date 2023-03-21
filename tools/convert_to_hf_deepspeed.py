@@ -11,6 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+A script for converting saved NeoX Checkpoints to Huggingface (HF) compatible GPT-NeoX type models.
+
+Note that this script does not support all NeoX features.
+Please investigate carefully whether your model is compatible with all architectures supported by the GPTNeoXForCausalLM class in HF.
+
+(e.g. position embeddings such as AliBi may not be supported by Huggingface's GPT-NeoX architecture.
+
+Usage:
+    python tools/convert_to_hf_deepspeed.py \
+        --input_dir <path/to/checkpoint> \
+        --output_dir <path/to/output> \
+        --config_file <path/to/config.yaml> \
+"""
 
 from megatron.tokenizer import build_tokenizer
 import os
@@ -28,16 +42,6 @@ from typing import List
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-
-
-"""
-A script for converting saved NeoX Checkpoints to Huggingface (HF) compatible GPT-NeoX type models.
-
-Note that this script does not support all NeoX features.
-Please investigate carefully whether your model is compatible with all architectures supported by the GPTNeoXForCausalLM class in HF.
-
-(e.g. position embeddings such as AliBi may not be supported by Huggingface's GPT-NeoX architecture.
-"""
 
 
 def load_partitions(
