@@ -467,14 +467,13 @@ def run_eval_harness(
     model,
     forward_step_fn,
     neox_args,
-    batch_size=None,
     eval_tasks=None,
     num_fewshot=0,
     bootstrap_iters=2,
 ):
     print_rank_0("Running evaluation harness...")
     adapter = EvalHarnessAdapter(
-        model, forward_step_fn, neox_args, batch_size=batch_size
+        model, forward_step_fn, neox_args, batch_size=neox_args.eval_batch_size
     )
     return adapter.run_eval(
         eval_tasks=eval_tasks,

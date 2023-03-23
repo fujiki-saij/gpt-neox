@@ -848,6 +848,11 @@ class NeoXArgsTraining(NeoXArgsTemplate):
     Number of iterations to run for evaluation validation/test for.
     """
 
+    eval_batch_size: int = None
+    """
+    evaluation microbatch size per gpu
+    """
+
     keep_last_n_checkpoints: int = None
     """
     Number of last checkpoints to keep
