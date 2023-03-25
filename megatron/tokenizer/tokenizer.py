@@ -28,13 +28,6 @@ from typing import List, Union
 from .gpt2_tokenization import GPT2Tokenizer
 
 
-try:
-    import tiktoken
-    HAS_TIKTOKEN = True
-except ModuleNotFoundError:
-    HAS_TIKTOKEN = False
-
-
 def build_tokenizer(args):
     """Initialize tokenizer."""
     if args.rank == 0:
@@ -361,7 +354,11 @@ class TiktokenTokenizer(AbstractTokenizer):
     """Tokenizer from OpenAI's tiktoken implementation"""
 
     def __init__(self, vocab_file):
-        assert HAS_TIKTOKEN, "tiktoken is not installed. Please install it with `pip install tiktoken`"
+        try:
+            import tiktoken
+        except ModuleNotFoundError:
+            print("Please install tiktoken: (https://github.com/openai/tiktoken)")
+            raise Exception
 
         name = "TiktokenTokenizer"
         super().__init__(name)
