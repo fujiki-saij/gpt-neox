@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Usage:
+    python prepare_data.py <dataset> [-t <tokenizer>] [-d <data_dir>] [-v <vocab_file>] [-m <merge_file>] [-f]
+    python prepare_data.py "books1" --tokenizer "HFTokenizer" --data-dir "/fsx/shared/books" --vocab-file "/fsx/pile/20B_tokenizer.json"
+"""
+
 from tools.corpora import prepare_dataset, DATA_DOWNLOADERS
 import argparse
 

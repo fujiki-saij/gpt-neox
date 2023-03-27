@@ -469,7 +469,7 @@ def run_eval_harness(
     neox_args,
     eval_tasks=None,
     num_fewshot=0,
-    bootstrap_iters=2,
+    bootstrap_iters=0,
 ):
     print_rank_0("Running evaluation harness...")
     adapter = EvalHarnessAdapter(

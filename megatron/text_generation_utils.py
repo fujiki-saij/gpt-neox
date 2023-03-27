@@ -292,6 +292,8 @@ def stream_tokens(
                 )
                 logits = forward_model(model, model_inputs, neox_args.is_pipe_parallel)
                 if logits is not None:  # if pipe parallel, not all ranks return logits
+                    print("logits:", logits.shape)
+                    logits = mpu.gather_from_model_parallel_region(logits)
                     generated_token_logits = logits[
                         :, token_index_to_generate - 1, :
                     ]  # [bs, seq, vocab_size] -> [bs, vocab_size]
@@ -315,6 +317,7 @@ def stream_tokens(
 
                 logits = forward_model(model, model_inputs, neox_args.is_pipe_parallel)
                 if logits is not None:  # if pipe parallel, not all ranks return logits
+                    logits = mpu.gather_from_model_parallel_region(logits)
                     generated_token_logits = (
                         logits[:, -1].view(batch_size, -1).contiguous()
                     )  # [bs, seq, vocab_size] -> [bs, vocab_size]

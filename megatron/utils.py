@@ -161,15 +161,19 @@ def init_wandb(neox_args):
     if neox_args.use_wandb:
         group_name = neox_args.wandb_group
         name = f"{socket.gethostname()}-{local_rank()}" if group_name else None
+        kwargs = {
+            "project": neox_args.wandb_project,
+            "group": group_name,
+            "name": name,
+            "save_code": False,
+            "force": False,
+            "entity": neox_args.wandb_team,
+        }
+        if neox_args.wandb_id is not None:
+            kwargs["id"] = neox_args.wandb_id
+            kwargs["resume"] = neox_args.wandb_resume
         try:
-            wandb.init(
-                project=neox_args.wandb_project,
-                group=group_name,
-                name=name,
-                save_code=False,
-                force=False,
-                entity=neox_args.wandb_team,
-            )
+            wandb.init(**kwargs)
         except wandb.UsageError as e:
             neox_args.update_value("use_wandb", False)
             print(e)
