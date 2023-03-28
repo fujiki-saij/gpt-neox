@@ -482,7 +482,7 @@ class NeoXArgsLogging(NeoXArgsTemplate):
     e.g. something like `3f87uku2`.
     """
 
-    wandb_resume: bool = False
+    wandb_resume: str = None
     """Resume a run from a wandb id."""
 
     git_hash: str = get_git_commit_hash()
