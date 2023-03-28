@@ -41,7 +41,8 @@ def initialize_megatron(neox_args, allow_no_cuda=False):
     """
     if not allow_no_cuda:
         # Make sure cuda is available.
-        assert torch.cuda.is_available(), "Megatron requires CUDA."
+        import socket
+        assert torch.cuda.is_available(), f"Megatron requires CUDA on node {socket.gethostname()}"
 
     # torch.distributed initialization
     def finish_mpu_init():
