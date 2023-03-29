@@ -44,8 +44,8 @@ class GPT2Dataset(torch.utils.data.Dataset):
         self.indexed_dataset = indexed_dataset
 
         # Checks
-        assert np.min(documents) >= 0
-        assert np.max(documents) < indexed_dataset.sizes.shape[0]
+        assert np.min(documents) >= 0, f"dataset {data_prefix} {name} has negative documents"
+        assert np.max(documents) < indexed_dataset.sizes.shape[0], f"dataset {name} has documents larger than the dataset"
 
         if build_index_mappings:
             # Build index mappings.
