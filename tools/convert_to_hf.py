@@ -37,6 +37,12 @@ Note that this script does not support all NeoX features.
 Please investigate carefully whether your model is compatible with all architectures supported by the GPTNeoXForCausalLM class in HF.
 
 (e.g. position embeddings such as AliBi may not be supported by Huggingface's GPT-NeoX architecture.
+
+Usage:
+    python tools/convert_to_hf.py \
+        --input_dir <path/to/checkpoint> \
+        --output_dir <path/to/output> \
+        --config_file <path/to/config.yaml>
 """
 
 
@@ -66,8 +72,9 @@ def get_state(
     """Accesses all MP partitions of a given layer/weight's state."""
     # main DeepSpeed saves each MP partition 
     key = f"sequential.{layer_idx}.{key}"
-
-    return [state_dict["module"][key] for state_dict in state_dicts]
+    # Make sure states are moved to CPU to avoid `multiple CUDA devices` error
+    states = [state_dict["module"][key].cpu() for state_dict in state_dicts]
+    return states
 
 
 def get_key(loaded_config, key, default=None):
