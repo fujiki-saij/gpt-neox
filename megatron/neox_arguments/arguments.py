@@ -374,14 +374,10 @@ class NeoXArgs(*BASE_CLASSES):
         if neox_args.use_wandb:
             try:
                 import wandb
+                
+                if neox_args.wandb_id is None:
+                    neox_args.wandb_id = wandb.util.generate_id()
 
-                # Check if the W&B group name is configured
-                if neox_args.wandb_group is None:
-                    # Set a randomized string as group name if no group name is provided
-                    neox_args.wandb_group = wandb.sdk.lib.runid.generate_id()
-                else:
-                    # Concatenate the W&B group name with a randomized string to ensure uniqueness.
-                    neox_args.wandb_group += "_" + wandb.sdk.lib.runid.generate_id()
             except ModuleNotFoundError as e:
                 if e.name == "wandb":
                     e.msg += "\nWeights & Biases monitoring was requested but `wandb` was not found. Install `wandb` to use Weights & Biases, or set the `use_wandb` configuration option to a boolean false to disable Weights & Biases logging."

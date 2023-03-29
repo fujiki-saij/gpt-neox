@@ -204,7 +204,6 @@ class ParallelSelfAttention(nn.Module):
         self.apply_query_key_layer_scaling = neox_args.apply_query_key_layer_scaling
         self.use_cache = use_cache
         self.use_multi_query_attention = neox_args.multi_query_attention
-        print_rank_0(f"multi_query_attention: {self.use_multi_query_attention}")
         self.attention_softmax_in_fp32 = neox_args.attention_softmax_in_fp32
         if self.apply_query_key_layer_scaling:
             self.attention_softmax_in_fp32 = True
