@@ -1,4 +1,4 @@
-# Copyright (c) 2021, EleutherAI
+# Copyright (c) 2023, EleutherAI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,8 +55,9 @@ def load_partitions(
         torch.load(
             os.path.join(
                 input_checkpoint_path,
-                f"mp_rank_{i:02}_model_states.pt",
-            )
+                f"layer_{layer_idx:02}-model_{i:02}-model_states.pt",
+            ),
+            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         )
         for i in range(mp_partitions)
     ]
@@ -70,11 +71,10 @@ def get_state(
     layer_idx: int,
 ) -> torch.Tensor:
     """Accesses all MP partitions of a given layer/weight's state."""
-    # main DeepSpeed saves each MP partition 
+    # main DeepSpeed saves each MP partition
     key = f"sequential.{layer_idx}.{key}"
-    # Make sure states are moved to CPU to avoid `multiple CUDA devices` error
-    states = [state_dict["module"][key].cpu() for state_dict in state_dicts]
-    return states
+
+    return [state_dict["module"][key] for state_dict in state_dicts]
 
 
 def get_key(loaded_config, key, default=None):
@@ -165,13 +165,7 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
 
     hf_model = GPTNeoXForCausalLM(
         hf_config
-    )
-    
-    # save model in FP16 if Deepspeed fp16 was used in config, else 32 bit
-    fp16 =  get_key(loaded_config, "fp16")
-    if fp16:
-        if fp16["fp16"]:
-            hf_model.half()
+    ).half()  # nice-to-have: lazy init weights somehow?
 
     mp_partitions = get_key(loaded_config, "model-parallel-size")
 
@@ -203,7 +197,9 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
             "attention.dense.weight",
             "mlp.dense_4h_to_h.weight",
         ]:
-            state_dict[key] = torch.cat(get_state(loaded_tp_ranks, key, layer_i + 2), dim=1)
+            state_dict[key] = torch.cat(
+                get_state(loaded_tp_ranks, key, layer_i + 2), dim=1
+            )
 
         # average layernorm stats over mp ranks
         for key in [
@@ -214,7 +210,7 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
         ]:
             state_dict[key] = sum(get_state(loaded_tp_ranks, key, layer_i + 2)) / len(
                 loaded_tp_ranks
-                )
+            )
 
         # LinearWithTPMerge
         for key in [
@@ -223,7 +219,9 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
             "attention.query_key_value.weight",
             "attention.query_key_value.bias",
         ]:
-            state_dict[key] = torch.cat(get_state(loaded_tp_ranks, key, layer_i + 2), dim=0)
+            state_dict[key] = torch.cat(
+                get_state(loaded_tp_ranks, key, layer_i + 2), dim=0
+            )
 
         # LinearWithTPSplitBias
         for key in [
@@ -248,15 +246,37 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
     # Load final layer norm
     hf_model.gpt_neox.final_layer_norm.load_state_dict(
         {
-            "weight": (sum(get_state(loaded_tp_ranks, "norm.weight", get_key(loaded_config, "num-layers") + 3))) / len(loaded_tp_ranks),
-            "bias": (sum(get_state(loaded_tp_ranks, "norm.bias", get_key(loaded_config, "num-layers") + 3))) / len(loaded_tp_ranks),
+            "weight": (
+                sum(
+                    get_state(
+                        loaded_tp_ranks,
+                        "norm.weight",
+                        get_key(loaded_config, "num-layers") + 3,
+                    )
+                )
+            )
+            / len(loaded_tp_ranks),
+            "bias": (
+                sum(
+                    get_state(
+                        loaded_tp_ranks,
+                        "norm.bias",
+                        get_key(loaded_config, "num-layers") + 3,
+                    )
+                )
+            )
+            / len(loaded_tp_ranks),
         }
     )
     # output embedding / LM head
     hf_model.embed_out.load_state_dict(
         {
             "weight": torch.cat(
-                get_state(loaded_tp_ranks, "final_linear.weight", get_key(loaded_config, "num-layers") + 4), 
+                get_state(
+                    loaded_tp_ranks,
+                    "final_linear.weight",
+                    get_key(loaded_config, "num-layers") + 4,
+                ),
                 dim=0,
             ),
         }
@@ -320,6 +340,14 @@ if __name__ == "__main__":
         print("loaded tokenizer: ", tokenizer)
         tokenizer.save_pretrained(args.output_dir)
         print("tokenizer saved!")
+
+        print(
+            tokenizer.decode(
+                hf_model.generate(
+                    tokenizer.encode("Hello, I am testing ", return_tensors="pt")
+                )[0]
+            )
+        )
 
     if args.upload:
         repo_name = input("Provide a repository name for the HF Hub: ")
