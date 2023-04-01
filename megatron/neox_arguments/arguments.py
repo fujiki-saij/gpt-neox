@@ -383,8 +383,6 @@ class NeoXArgs(*BASE_CLASSES):
                     e.msg += "\nWeights & Biases monitoring was requested but `wandb` was not found. Install `wandb` to use Weights & Biases, or set the `use_wandb` configuration option to a boolean false to disable Weights & Biases logging."
                 raise e
 
-            neox_args.wandb_group += "_" + wandb.util.generate_id()
-
         neox_args.print()
 
         return neox_args
