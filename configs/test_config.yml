@@ -12,7 +12,6 @@
   "no-weight-tying": true,
   "gpt-j-residual": true,
   "output-layer-parallelism": "column",
-  "multi_query_attention": True,
 
   "scaled-upper-triang-masked-softmax-fusion": false,
   "bias-gelu-fusion": false,
@@ -83,7 +82,7 @@
   "wall_clock_breakdown": true,
   "eval-tasks": ["piqa"],
 
-  "data-path": "data/enron/enron_text_document",
+  "data-path": "data/enwik8/enwik8_text_document",
 
   # "tokenizer_type": "TiktokenTokenizer",
   # "vocab-file": "cl100k_base",

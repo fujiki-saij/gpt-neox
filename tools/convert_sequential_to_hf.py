@@ -39,7 +39,7 @@ Please investigate carefully whether your model is compatible with all architect
 (e.g. position embeddings such as AliBi may not be supported by Huggingface's GPT-NeoX architecture.
 
 Usage:
-    python tools/convert_to_hf.py \
+    python tools/convert_sequential_to_hf.py \
         --input_dir <path/to/checkpoint> \
         --output_dir <path/to/output> \
         --config_file <path/to/config.yaml>
