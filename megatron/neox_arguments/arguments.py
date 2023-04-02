@@ -374,7 +374,7 @@ class NeoXArgs(*BASE_CLASSES):
         if neox_args.use_wandb:
             try:
                 import wandb
-                
+
                 if neox_args.wandb_id is None:
                     neox_args.wandb_id = wandb.util.generate_id()
 
