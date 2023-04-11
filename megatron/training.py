@@ -27,7 +27,7 @@ import sys
 
 import torch
 import deepspeed
-from deepspeed.runtime.data_pipeline.curriculum_scheduler import CurriculumScheduler
+# from deepspeed.runtime.data_pipeline.curriculum_scheduler import CurriculumScheduler
 import numpy as np
 
 from megatron.utils import (
@@ -190,7 +190,7 @@ def pretrain(neox_args):
     # Model, optimizer, and learning rate.
     timers("model and optimizer").start()
     model, optimizer, lr_scheduler = setup_model_and_optimizer(
-        neox_args=neox_args, use_cache=False
+        neox_args=neox_args, use_cache=False, iteration=neox_args.iteration
     )
     timers("model and optimizer").stop()
 
