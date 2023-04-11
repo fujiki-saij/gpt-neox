@@ -1,4 +1,4 @@
-# Copyright (c) 2023, EleutherAI
+# Copyright (c) 2021, EleutherAI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+A script for converting saved NeoX Checkpoints to Huggingface (HF) compatible GPT-NeoX type models.
 
+Note that this script does not support all NeoX features.
+Please investigate carefully whether your model is compatible with all architectures supported by the GPTNeoXForCausalLM class in HF.
+
+(e.g. position embeddings such as AliBi may not be supported by Huggingface's GPT-NeoX architecture.
+
+Usage:
+    python tools/convert_to_hf_deepspeed.py \
+        --input_dir <path/to/checkpoint> \
+        --output_dir <path/to/output> \
+        --config_file <path/to/config.yaml> \
+"""
+
+import os
+import sys
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+)
+from megatron.tokenizer import build_tokenizer
 import os
 import sys
 
@@ -24,27 +44,6 @@ from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
 
 from typing import List
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
-from megatron.tokenizer import build_tokenizer
-
-
-"""
-A script for converting saved NeoX Checkpoints to Huggingface (HF) compatible GPT-NeoX type models.
-
-Note that this script does not support all NeoX features.
-Please investigate carefully whether your model is compatible with all architectures supported by the GPTNeoXForCausalLM class in HF.
-
-(e.g. position embeddings such as AliBi may not be supported by Huggingface's GPT-NeoX architecture.
-
-Usage:
-    python tools/convert_sequential_to_hf.py \
-        --input_dir <path/to/checkpoint> \
-        --output_dir <path/to/output> \
-        --config_file <path/to/config.yaml>
-"""
-
 
 def load_partitions(
     input_checkpoint_path, mp_partitions
@@ -55,9 +54,8 @@ def load_partitions(
         torch.load(
             os.path.join(
                 input_checkpoint_path,
-                f"layer_{layer_idx:02}-model_{i:02}-model_states.pt",
-            ),
-            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+                f"mp_rank_{i:02}_model_states.pt",
+            )
         )
         for i in range(mp_partitions)
     ]
@@ -66,15 +64,16 @@ def load_partitions(
 
 
 def get_state(
-    state_dicts: List[torch.Tensor], 
+    state_dicts: List[torch.Tensor],
     key: str,
     layer_idx: int,
 ) -> torch.Tensor:
     """Accesses all MP partitions of a given layer/weight's state."""
     # main DeepSpeed saves each MP partition
     key = f"sequential.{layer_idx}.{key}"
-
-    return [state_dict["module"][key] for state_dict in state_dicts]
+    # Make sure states are moved to CPU to avoid `multiple CUDA devices` error
+    states = [state_dict["module"][key].cpu() for state_dict in state_dicts]
+    return states
 
 
 def get_key(loaded_config, key, default=None):
@@ -105,7 +104,8 @@ def create_config(neox_config):
             self.make_vocab_size_divisible_by = get_key(
                 neox_config, "make-vocab-size-divisible-by", default=128
             )
-            self.model_parallel_size = get_key(neox_config, "model-parallel-size")
+            self.model_parallel_size = get_key(
+                neox_config, "model-parallel-size")
             self.vocab_file = get_key(neox_config, "vocab-file")
             self.merge_file = get_key(neox_config, "merge-file")
             self.tokenizer_type = get_key(neox_config, "tokenizer-type")
@@ -141,13 +141,15 @@ def create_config(neox_config):
         hidden_act=get_key(neox_config, "activation", default="gelu"),
         rotary_pct=get_key(neox_config, "rotary-pct", default=1.0),
         rotary_emb_base=get_key(neox_config, "rotary-emb-base", default=10000),
-        max_position_embeddings=get_key(neox_config, "max-position-embeddings"),
+        max_position_embeddings=get_key(
+            neox_config, "max-position-embeddings"),
         initializer_range=get_key(neox_config, "init-method-std", 0.02),
         layer_norm_eps=get_key(neox_config, "layernorm-epsilon", 1e-5),
         use_cache=True,
         bos_token_id=tokenizer.eod,
         eos_token_id=tokenizer.eod,
-        tie_word_embeddings=(not get_key(neox_config, "no-weight-tying", False)),
+        tie_word_embeddings=(not get_key(
+            neox_config, "no-weight-tying", False)),
         use_parallel_residual=get_key(neox_config, "gpt-j-residual", False),
     )
     return hf_config
@@ -161,19 +163,24 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
 
     hf_config = GPTNeoXConfig()
 
+    print("Loading config...")
     hf_config = create_config(loaded_config)
+    print("Config loaded.")
 
     hf_model = GPTNeoXForCausalLM(
         hf_config
     ).half()  # nice-to-have: lazy init weights somehow?
 
+    print("Getting model parallel size...")
     mp_partitions = get_key(loaded_config, "model-parallel-size")
 
+    print("Loading model partitions...")
     # DeepSpeed main saves all model states from an MP rank in one file. load the MP ranks only once and index into them with get_state()
     loaded_tp_ranks = load_partitions(input_checkpoint_path, mp_partitions)
 
-    ### Embedding layer ###
+    # Embedding layer
     # Embedding is layer idx 0
+    print("Loading embedding layer...")
     hf_model.gpt_neox.embed_in.load_state_dict(
         {
             "weight": torch.cat(
@@ -184,8 +191,9 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
     assert (
         hf_config.vocab_size == hf_model.gpt_neox.embed_in.weight.shape[0]
     ), f"ERROR: calculated vocab size {hf_config.vocab_size} != embed param size {hf_model.gpt_neox.embed_in.shape[0]}"
-    ### End Embedding Layer ###
+    # End Embedding Layer
 
+    print("Loading transformer layers...")
     for layer_i in tqdm(range(get_key(loaded_config, "num-layers"))):
 
         # get layer from hf model
@@ -198,8 +206,7 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
             "mlp.dense_4h_to_h.weight",
         ]:
             state_dict[key] = torch.cat(
-                get_state(loaded_tp_ranks, key, layer_i + 2), dim=1
-            )
+                get_state(loaded_tp_ranks, key, layer_i + 2), dim=1)
 
         # average layernorm stats over mp ranks
         for key in [
@@ -220,8 +227,7 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
             "attention.query_key_value.bias",
         ]:
             state_dict[key] = torch.cat(
-                get_state(loaded_tp_ranks, key, layer_i + 2), dim=0
-            )
+                get_state(loaded_tp_ranks, key, layer_i + 2), dim=0)
 
         # LinearWithTPSplitBias
         for key in [
@@ -246,37 +252,16 @@ def convert(input_checkpoint_path, loaded_config, output_checkpoint_path):
     # Load final layer norm
     hf_model.gpt_neox.final_layer_norm.load_state_dict(
         {
-            "weight": (
-                sum(
-                    get_state(
-                        loaded_tp_ranks,
-                        "norm.weight",
-                        get_key(loaded_config, "num-layers") + 3,
-                    )
-                )
-            )
-            / len(loaded_tp_ranks),
-            "bias": (
-                sum(
-                    get_state(
-                        loaded_tp_ranks,
-                        "norm.bias",
-                        get_key(loaded_config, "num-layers") + 3,
-                    )
-                )
-            )
-            / len(loaded_tp_ranks),
+            "weight": (sum(get_state(loaded_tp_ranks, "norm.weight", get_key(loaded_config, "num-layers") + 3))) / len(loaded_tp_ranks),
+            "bias": (sum(get_state(loaded_tp_ranks, "norm.bias", get_key(loaded_config, "num-layers") + 3))) / len(loaded_tp_ranks),
         }
     )
     # output embedding / LM head
     hf_model.embed_out.load_state_dict(
         {
             "weight": torch.cat(
-                get_state(
-                    loaded_tp_ranks,
-                    "final_linear.weight",
-                    get_key(loaded_config, "num-layers") + 4,
-                ),
+                get_state(loaded_tp_ranks, "final_linear.weight",
+                          get_key(loaded_config, "num-layers") + 4),
                 dim=0,
             ),
         }
@@ -331,7 +316,8 @@ if __name__ == "__main__":
     tokenizer_type = get_key(loaded_config, "tokenizer-type")
 
     if tokenizer_type == "HFTokenizer":
-        print(f"saving tokenizer from file {get_key(loaded_config, 'vocab-file')}")
+        print(
+            f"saving tokenizer from file {get_key(loaded_config, 'vocab-file')}")
         from transformers import PreTrainedTokenizerFast
 
         tokenizer = PreTrainedTokenizerFast(
@@ -341,17 +327,10 @@ if __name__ == "__main__":
         tokenizer.save_pretrained(args.output_dir)
         print("tokenizer saved!")
 
-        print(
-            tokenizer.decode(
-                hf_model.generate(
-                    tokenizer.encode("Hello, I am testing ", return_tensors="pt")
-                )[0]
-            )
-        )
-
     if args.upload:
         repo_name = input("Provide a repository name for the HF Hub: ")
-        create_repo(repo_name, repo_type="model", private=False, use_auth_token=True)
+        create_repo(repo_name, repo_type="model",
+                    private=False, use_auth_token=True)
 
         api = HfApi()
         api.upload_folder(
