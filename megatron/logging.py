@@ -302,6 +302,15 @@ def training_log(
             1, neox_args.log_interval - total_loss_dict[skipped_iters_key]
         )
 
+        # log tokens seen so far
+        tb_wandb_log(
+            "runtime/tokens",
+            neox_args.train_batch_size * neox_args.seq_length * iteration,
+            iteration,
+            use_wandb=neox_args.use_wandb,
+            tensorboard_writer=neox_args.tensorboard_writer,
+        )
+
         # log curriculum learning
         if neox_args.curriculum_learning:
             tb_wandb_log(
