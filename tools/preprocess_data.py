@@ -94,6 +94,7 @@ def get_args():
             "GPT2BPETokenizer",
             "CharLevelTokenizer",
             "TiktokenTokenizer",
+            "SPMTokenizer",
         ],
         help="What type of tokenizer to use.",
     )
@@ -193,6 +194,9 @@ def main():
     output_bin_files = {}
     output_idx_files = {}
     builders = {}
+    parent_dir = os.path.dirname(args.output_prefix)
+    if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir, exist_ok=True)
     for key in args.jsonl_keys:
         output_bin_files[key] = "{}_{}_{}.bin".format(
             args.output_prefix, key, "document"
