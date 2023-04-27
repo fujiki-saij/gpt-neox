@@ -1,0 +1,137 @@
+{
+  # The Pile v2 re-contaminated with P3 benchmarks and Books3 with down-sampling
+  # on the code datasets (5%).
+  #
+  # NOTE: `data-paths` may be different on different clusters!
+
+  # parallelism settings
+  "pipe-parallel-size": 1,
+  "model-parallel-size": 4,
+
+  # model settings
+  "num-layers": 36,
+  "hidden-size": 8192,
+  "num-attention-heads": 64,
+  "seq-length": 4096,
+  "max-position-embeddings": 4096,
+
+  # architecture design
+  "norm": "layernorm",
+  "pos-emb": "rotary",
+  "rotary_pct": 0.25,
+  "activation": "gelu",
+  "no-weight-tying": true,
+  "gpt_j_residual": true,
+  "output_layer_parallelism": "column",
+
+  # init methods
+  "init_method": "small_init",
+  "output_layer_init_method": "wang_init",
+
+  # fused ops
+  "scaled-upper-triang-masked-softmax-fusion": true,
+  "bias-gelu-fusion": true,
+  "attention-config": [[["flash"], 36]],
+
+  # optimizer settings
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 6.0e-4,
+      "betas": [0.9, 0.95],
+      "eps": 1.0e-6
+    },
+  },
+  "min_lr": 6.0e-5,
+
+  # for all zero_optimization options, see https://www.deepspeed.ai/docs/config-json/#zero-optimizations-for-fp16-training
+  "zero_optimization": {
+    "stage": 1,
+    "allgather_partitions": true,
+    "allgather_bucket_size": 1260000000,
+    "overlap_comm": true,
+    "reduce_scatter": true,
+    "reduce_bucket_size": 1260000000,
+    "contiguous_gradients": true,
+  },
+
+  # batch / data settings
+  "train_micro_batch_size_per_gpu": 8,
+  "gradient_accumulation_steps": 1,
+  "eval_batch_size": 1,
+  "data-impl": "mmap",
+
+  # activation checkpointing
+  "checkpoint-activations": true,
+  "checkpoint-num-layers": 1,
+  "partition-activations": true,
+  "synchronize-each-layer": true,
+
+  # regularization
+  "gradient_clipping": 1.0,
+  "weight-decay": 0.1,
+  "hidden-dropout": 0,
+  "attention-dropout": 0,
+
+  # precision settings
+  "fp16": {
+    "fp16": true,
+    "enabled": true,
+    "loss_scale": 0,
+    "loss_scale_window": 1000,
+    "initial_scale_power": 12,
+    "hysteresis": 2,
+    "min_loss_scale": 1
+  },
+
+  # misc. training settings
+  "train-iters": 180000,
+  "lr-decay-iters": 180000,
+  "distributed-backend": "nccl",
+  "lr-decay-style": "cosine",
+  "warmup": 0.01,
+  "checkpoint-factor": 500,
+  # 1 more than checkpoint-factor to avoid skipping evals if `evaluate` fails
+  "eval-interval": 1001,
+  "eval-iters": 10,
+  "eval_tasks": ["lambada_openai", "piqa"],
+
+  "save": "/fsx/ckpts/30b_tok=neox_data=fixed-pilev2-recontam=p3_lower-code_bs=8m_tp=4_pp=1_init=wang-small-init",
+  "load": "/fsx/ckpts/30b_tok=neox_data=fixed-pilev2-recontam=p3_lower-code_bs=8m_tp=4_pp=1_init=wang-small-init",
+
+  # data settings
+  # (AWS East paths)
+  # "train-data-paths": ["/fsx/pilev2/merged/ai4code_nbs/ai4code_nbs", "/fsx/pilev2/merged/amps_fix/amps_fix", "/fsx/pilev2/merged/arxiv_fix_2/arxiv_fix_2", "/fsx/pilev2/merged/books3_retok/books3_retok", "/fsx/pilev2/merged/cc2/cc2", "/fsx/pilev2/merged/code_reddit_dialog/code_reddit_dialog", "/fsx/pilev2/merged/code_reddit_posts/code_reddit_posts", "/fsx/pilev2/merged/competitive_programming/competitive_programming_chunk_0_input_ids_document", "/fsx/pilev2/merged/devdocs/devdocs", "/fsx/pilev2/merged/discourse/discourse", "/fsx/pilev2/merged/dm_math_fix/dm_math_fix", "/fsx/pilev2/merged/enwiki/enwiki", "/fsx/pilev2/merged/euro_parl/euro_parl", "/fsx/pilev2/merged/free_law_fix/free_law_fix", "/fsx/pilev2/merged/github_diffs_fix/github_diffs_fix", "/fsx/pilev2/merged/github_issues_fix/github_issues_fix", "/fsx/pilev2/merged/gutenberg/gutenberg", "/fsx/pilev2/merged/opensubtitles_fix/opensubtitles_fix", "/fsx/pilev2/merged/other_wiki_fixed/other_wiki_fixed", "/fsx/pilev2/merged/pile_of_law/pile_of_law", "/fsx/pilev2/merged/pubmed_fix/pubmed_fix", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_19_trial_1", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_19_trial_2", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_20", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_21", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_22", "/fsx/pilev2/merged/reddit_posts_fix/reddit_posts_fix", "/fsx/pilev2/merged/s2orc_fix/s2orc_fix", "/fsx/pilev2/merged/soda/soda", "/fsx/pilev2/merged/stack_exchange_mp/stack_exchange_mp", "/fsx/pilev2/merged/ted_talks_fixed/ted_talks_fixed_chunk_0_input_ids_document", "/fsx/pilev2/merged/the_stack/the_stack", "/fsx/pilev2/merged/ubuntu_irc/ubuntu_irc", "/fsx/pilev2/merged/usenet/usenet", "/fsx/pilev2/merged/uspto/uspto", "/fsx/pilev2/merged/benchmarks/p3"],
+  # "train-data-weights": [0.03, 0.02, 3.5, 13.87, 30.88, 0.34, 0.03, 0.1, 0.01, 0.5, 0.25, 0.25, 0.11, 1, 0.1, 0.5, 0.6, 0.19, 0.05, 2, 3.5, 4.15, 5.75, 3.17, 3.44, 3.49, 3, 6, 0.02, 2, 0.01, 3.95, 0.05, 1.09, 6, 0.05],
+  # "valid-data-paths": ["/fsx/pilev2/merged/ai4code_nbs/ai4code_nbs", "/fsx/pilev2/merged/amps_fix/amps_fix", "/fsx/pilev2/merged/arxiv_fix_2/arxiv_fix_2", "/fsx/pilev2/merged/books3_retok/books3_retok", "/fsx/pilev2/merged/cc2/cc2", "/fsx/pilev2/merged/code_reddit_dialog/code_reddit_dialog", "/fsx/pilev2/merged/code_reddit_posts/code_reddit_posts", "/fsx/pilev2/merged/competitive_programming/competitive_programming_chunk_0_input_ids_document", "/fsx/pilev2/merged/devdocs/devdocs", "/fsx/pilev2/merged/discourse/discourse", "/fsx/pilev2/merged/dm_math_fix/dm_math_fix", "/fsx/pilev2/merged/enwiki/enwiki", "/fsx/pilev2/merged/euro_parl/euro_parl", "/fsx/pilev2/merged/free_law_fix/free_law_fix", "/fsx/pilev2/merged/github_diffs_fix/github_diffs_fix", "/fsx/pilev2/merged/github_issues_fix/github_issues_fix", "/fsx/pilev2/merged/gutenberg/gutenberg", "/fsx/pilev2/merged/opensubtitles_fix/opensubtitles_fix", "/fsx/pilev2/merged/other_wiki_fixed/other_wiki_fixed", "/fsx/pilev2/merged/pile_of_law/pile_of_law", "/fsx/pilev2/merged/pubmed_fix/pubmed_fix", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_19_trial_1", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_19_trial_2", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_20", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_21", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_22", "/fsx/pilev2/merged/reddit_posts_fix/reddit_posts_fix", "/fsx/pilev2/merged/s2orc_fix/s2orc_fix", "/fsx/pilev2/merged/soda/soda", "/fsx/pilev2/merged/stack_exchange_mp/stack_exchange_mp", "/fsx/pilev2/merged/ted_talks_fixed/ted_talks_fixed_chunk_0_input_ids_document", "/fsx/pilev2/merged/the_stack/the_stack", "/fsx/pilev2/merged/ubuntu_irc/ubuntu_irc", "/fsx/pilev2/merged/usenet/usenet", "/fsx/pilev2/merged/uspto/uspto", "/fsx/pilev2/merged/benchmarks/p3"],
+  # "valid-data-weights": [0.03, 0.02, 3.5, 13.87, 30.88, 0.34, 0.03, 0.1, 0.01, 0.5, 0.25, 0.25, 0.11, 1, 0.1, 0.5, 0.6, 0.19, 0.05, 2, 3.5, 4.15, 5.75, 3.17, 3.44, 3.49, 3, 6, 0.02, 2, 0.01, 3.95, 0.05, 1.09, 6, 0.05],
+  # "test-data-paths": ["/fsx/pilev2/merged/ai4code_nbs/ai4code_nbs", "/fsx/pilev2/merged/amps_fix/amps_fix", "/fsx/pilev2/merged/arxiv_fix_2/arxiv_fix_2", "/fsx/pilev2/merged/books3_retok/books3_retok", "/fsx/pilev2/merged/cc2/cc2", "/fsx/pilev2/merged/code_reddit_dialog/code_reddit_dialog", "/fsx/pilev2/merged/code_reddit_posts/code_reddit_posts", "/fsx/pilev2/merged/competitive_programming/competitive_programming_chunk_0_input_ids_document", "/fsx/pilev2/merged/devdocs/devdocs", "/fsx/pilev2/merged/discourse/discourse", "/fsx/pilev2/merged/dm_math_fix/dm_math_fix", "/fsx/pilev2/merged/enwiki/enwiki", "/fsx/pilev2/merged/euro_parl/euro_parl", "/fsx/pilev2/merged/free_law_fix/free_law_fix", "/fsx/pilev2/merged/github_diffs_fix/github_diffs_fix", "/fsx/pilev2/merged/github_issues_fix/github_issues_fix", "/fsx/pilev2/merged/gutenberg/gutenberg", "/fsx/pilev2/merged/opensubtitles_fix/opensubtitles_fix", "/fsx/pilev2/merged/other_wiki_fixed/other_wiki_fixed", "/fsx/pilev2/merged/pile_of_law/pile_of_law", "/fsx/pilev2/merged/pubmed_fix/pubmed_fix", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_19_trial_1", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_19_trial_2", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_20", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_21", "/fsx/pilev2/merged/reddit_dialog_fix/reddit_dialog_22", "/fsx/pilev2/merged/reddit_posts_fix/reddit_posts_fix", "/fsx/pilev2/merged/s2orc_fix/s2orc_fix", "/fsx/pilev2/merged/soda/soda", "/fsx/pilev2/merged/stack_exchange_mp/stack_exchange_mp", "/fsx/pilev2/merged/ted_talks_fixed/ted_talks_fixed_chunk_0_input_ids_document", "/fsx/pilev2/merged/the_stack/the_stack", "/fsx/pilev2/merged/ubuntu_irc/ubuntu_irc", "/fsx/pilev2/merged/usenet/usenet", "/fsx/pilev2/merged/uspto/uspto", "/fsx/pilev2/merged/benchmarks/p3"],
+  # "test-data-weights": [0.03, 0.02, 3.5, 13.87, 30.88, 0.34, 0.03, 0.1, 0.01, 0.5, 0.25, 0.25, 0.11, 1, 0.1, 0.5, 0.6, 0.19, 0.05, 2, 3.5, 4.15, 5.75, 3.17, 3.44, 3.49, 3, 6, 0.02, 2, 0.01, 3.95, 0.05, 1.09, 6, 0.05],
+  # (AWS West paths)
+  "train-data-paths": ["/fsx/proj-stablegpt/pilev2_neox/ai4code_nbs/ai4code_nbs", "/fsx/proj-stablegpt/pilev2_neox/amps_fix/amps_fix", "/fsx/proj-stablegpt/pilev2_neox/arxiv_fix_2/arxiv_fix_2", "/fsx/proj-stablegpt/pilev2_neox/books3_retok/books3_retok", "/fsx/proj-stablegpt/pilev2_neox/cc2/cc2", "/fsx/proj-stablegpt/pilev2_neox/code_reddit_dialog/code_reddit_dialog", "/fsx/proj-stablegpt/pilev2_neox/code_reddit_posts/code_reddit_posts", "/fsx/proj-stablegpt/pilev2_neox/competitive_programming/competitive_programming_chunk_0_input_ids_document", "/fsx/proj-stablegpt/pilev2_neox/devdocs/devdocs", "/fsx/proj-stablegpt/pilev2_neox/discourse/discourse", "/fsx/proj-stablegpt/pilev2_neox/dm_math_fix/dm_math_fix", "/fsx/proj-stablegpt/pilev2_neox/enwiki/enwiki", "/fsx/proj-stablegpt/pilev2_neox/euro_parl/euro_parl", "/fsx/proj-stablegpt/pilev2_neox/free_law_fix/free_law_fix", "/fsx/proj-stablegpt/pilev2_neox/github_diffs_fix/github_diffs_fix", "/fsx/proj-stablegpt/pilev2_neox/github_issues_fix/github_issues_fix", "/fsx/proj-stablegpt/pilev2_neox/gutenberg/gutenberg", "/fsx/proj-stablegpt/pilev2_neox/opensubtitles_fix/opensubtitles_fix", "/fsx/proj-stablegpt/pilev2_neox/other_wiki_fixed/other_wiki_fixed", "/fsx/proj-stablegpt/pilev2_neox/pile_of_law/pile_of_law", "/fsx/proj-stablegpt/pilev2_neox/pubmed_fix/pubmed_fix", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_19_trial_1", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_19_trial_2", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_20", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_21", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_22", "/fsx/proj-stablegpt/pilev2_neox/reddit_posts_fix/reddit_posts_fix", "/fsx/proj-stablegpt/pilev2_neox/s2orc_fix/s2orc_fix", "/fsx/proj-stablegpt/pilev2_neox/soda/soda", "/fsx/proj-stablegpt/pilev2_neox/stack_exchange_mp/stack_exchange_mp", "/fsx/proj-stablegpt/pilev2_neox/ted_talks_fixed/ted_talks_fixed_chunk_0_input_ids_document", "/fsx/proj-stablegpt/pilev2_neox/the_stack/the_stack", "/fsx/proj-stablegpt/pilev2_neox/ubuntu_irc/ubuntu_irc", "/fsx/proj-stablegpt/pilev2_neox/usenet/usenet", "/fsx/proj-stablegpt/pilev2_neox/uspto/uspto", "/fsx/proj-stablegpt/pilev2_neox/benchmarks/p3"],
+  "train-data-weights": [0.03, 0.02, 3.5, 13.87, 30.88, 0.34, 0.03, 0.1, 0.01, 0.5, 0.25, 0.25, 0.11, 1, 0.1, 0.5, 0.6, 0.19, 0.05, 2, 3.5, 4.15, 5.75, 3.17, 3.44, 3.49, 3, 6, 0.02, 2, 0.01, 3.95, 0.05, 1.09, 6, 0.05],
+  "valid-data-paths": ["/fsx/proj-stablegpt/pilev2_neox/ai4code_nbs/ai4code_nbs", "/fsx/proj-stablegpt/pilev2_neox/amps_fix/amps_fix", "/fsx/proj-stablegpt/pilev2_neox/arxiv_fix_2/arxiv_fix_2", "/fsx/proj-stablegpt/pilev2_neox/books3_retok/books3_retok", "/fsx/proj-stablegpt/pilev2_neox/cc2/cc2", "/fsx/proj-stablegpt/pilev2_neox/code_reddit_dialog/code_reddit_dialog", "/fsx/proj-stablegpt/pilev2_neox/code_reddit_posts/code_reddit_posts", "/fsx/proj-stablegpt/pilev2_neox/competitive_programming/competitive_programming_chunk_0_input_ids_document", "/fsx/proj-stablegpt/pilev2_neox/devdocs/devdocs", "/fsx/proj-stablegpt/pilev2_neox/discourse/discourse", "/fsx/proj-stablegpt/pilev2_neox/dm_math_fix/dm_math_fix", "/fsx/proj-stablegpt/pilev2_neox/enwiki/enwiki", "/fsx/proj-stablegpt/pilev2_neox/euro_parl/euro_parl", "/fsx/proj-stablegpt/pilev2_neox/free_law_fix/free_law_fix", "/fsx/proj-stablegpt/pilev2_neox/github_diffs_fix/github_diffs_fix", "/fsx/proj-stablegpt/pilev2_neox/github_issues_fix/github_issues_fix", "/fsx/proj-stablegpt/pilev2_neox/gutenberg/gutenberg", "/fsx/proj-stablegpt/pilev2_neox/opensubtitles_fix/opensubtitles_fix", "/fsx/proj-stablegpt/pilev2_neox/other_wiki_fixed/other_wiki_fixed", "/fsx/proj-stablegpt/pilev2_neox/pile_of_law/pile_of_law", "/fsx/proj-stablegpt/pilev2_neox/pubmed_fix/pubmed_fix", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_19_trial_1", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_19_trial_2", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_20", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_21", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_22", "/fsx/proj-stablegpt/pilev2_neox/reddit_posts_fix/reddit_posts_fix", "/fsx/proj-stablegpt/pilev2_neox/s2orc_fix/s2orc_fix", "/fsx/proj-stablegpt/pilev2_neox/soda/soda", "/fsx/proj-stablegpt/pilev2_neox/stack_exchange_mp/stack_exchange_mp", "/fsx/proj-stablegpt/pilev2_neox/ted_talks_fixed/ted_talks_fixed_chunk_0_input_ids_document", "/fsx/proj-stablegpt/pilev2_neox/the_stack/the_stack", "/fsx/proj-stablegpt/pilev2_neox/ubuntu_irc/ubuntu_irc", "/fsx/proj-stablegpt/pilev2_neox/usenet/usenet", "/fsx/proj-stablegpt/pilev2_neox/uspto/uspto", "/fsx/proj-stablegpt/pilev2_neox/benchmarks/p3"],
+  "valid-data-weights": [0.03, 0.02, 3.5, 13.87, 30.88, 0.34, 0.03, 0.1, 0.01, 0.5, 0.25, 0.25, 0.11, 1, 0.1, 0.5, 0.6, 0.19, 0.05, 2, 3.5, 4.15, 5.75, 3.17, 3.44, 3.49, 3, 6, 0.02, 2, 0.01, 3.95, 0.05, 1.09, 6, 0.05],
+  "test-data-paths": ["/fsx/proj-stablegpt/pilev2_neox/ai4code_nbs/ai4code_nbs", "/fsx/proj-stablegpt/pilev2_neox/amps_fix/amps_fix", "/fsx/proj-stablegpt/pilev2_neox/arxiv_fix_2/arxiv_fix_2", "/fsx/proj-stablegpt/pilev2_neox/books3_retok/books3_retok", "/fsx/proj-stablegpt/pilev2_neox/cc2/cc2", "/fsx/proj-stablegpt/pilev2_neox/code_reddit_dialog/code_reddit_dialog", "/fsx/proj-stablegpt/pilev2_neox/code_reddit_posts/code_reddit_posts", "/fsx/proj-stablegpt/pilev2_neox/competitive_programming/competitive_programming_chunk_0_input_ids_document", "/fsx/proj-stablegpt/pilev2_neox/devdocs/devdocs", "/fsx/proj-stablegpt/pilev2_neox/discourse/discourse", "/fsx/proj-stablegpt/pilev2_neox/dm_math_fix/dm_math_fix", "/fsx/proj-stablegpt/pilev2_neox/enwiki/enwiki", "/fsx/proj-stablegpt/pilev2_neox/euro_parl/euro_parl", "/fsx/proj-stablegpt/pilev2_neox/free_law_fix/free_law_fix", "/fsx/proj-stablegpt/pilev2_neox/github_diffs_fix/github_diffs_fix", "/fsx/proj-stablegpt/pilev2_neox/github_issues_fix/github_issues_fix", "/fsx/proj-stablegpt/pilev2_neox/gutenberg/gutenberg", "/fsx/proj-stablegpt/pilev2_neox/opensubtitles_fix/opensubtitles_fix", "/fsx/proj-stablegpt/pilev2_neox/other_wiki_fixed/other_wiki_fixed", "/fsx/proj-stablegpt/pilev2_neox/pile_of_law/pile_of_law", "/fsx/proj-stablegpt/pilev2_neox/pubmed_fix/pubmed_fix", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_19_trial_1", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_19_trial_2", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_20", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_21", "/fsx/proj-stablegpt/pilev2_neox/reddit_dialog_fix/reddit_dialog_22", "/fsx/proj-stablegpt/pilev2_neox/reddit_posts_fix/reddit_posts_fix", "/fsx/proj-stablegpt/pilev2_neox/s2orc_fix/s2orc_fix", "/fsx/proj-stablegpt/pilev2_neox/soda/soda", "/fsx/proj-stablegpt/pilev2_neox/stack_exchange_mp/stack_exchange_mp", "/fsx/proj-stablegpt/pilev2_neox/ted_talks_fixed/ted_talks_fixed_chunk_0_input_ids_document", "/fsx/proj-stablegpt/pilev2_neox/the_stack/the_stack", "/fsx/proj-stablegpt/pilev2_neox/ubuntu_irc/ubuntu_irc", "/fsx/proj-stablegpt/pilev2_neox/usenet/usenet", "/fsx/proj-stablegpt/pilev2_neox/uspto/uspto", "/fsx/proj-stablegpt/pilev2_neox/benchmarks/p3"],
+  "test-data-weights": [0.03, 0.02, 3.5, 13.87, 30.88, 0.34, 0.03, 0.1, 0.01, 0.5, 0.25, 0.25, 0.11, 1, 0.1, 0.5, 0.6, 0.19, 0.05, 2, 3.5, 4.15, 5.75, 3.17, 3.44, 3.49, 3, 6, 0.02, 2, 0.01, 3.95, 0.05, 1.09, 6, 0.05],
+
+  # tokenizer settings
+  "tokenizer-type": "HFTokenizer",
+  "vocab-file": "/fsx/pile/20B_tokenizer.json",
+
+  # log settings
+  "log-interval": 10,
+  "steps_per_print": 10,
+  "wall_clock_breakdown": true,
+
+  "use_wandb": true,
+  "wandb_host": "https://stability.wandb.io",
+  "wandb_team": "stability-llm",
+  "wandb_project": "stable-lm",
+  "wandb_group": "30b",
+  "wandb_name": "30B.neox.fixed_recontam_p3.lower_code.bs_8m.tp_4",
+
+  # multi-node launcher
+  "launcher": "slurm",
+  "deepspeed_slurm": true
+}
