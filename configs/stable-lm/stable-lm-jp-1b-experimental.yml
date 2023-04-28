@@ -1,0 +1,140 @@
+{
+  "pipe-parallel-size": 1,
+  "model-parallel-size": 1,
+
+  # model settings
+  "num-layers": 24,
+  "hidden-size": 2048,
+  "num-attention-heads": 16,
+  "seq-length": 4096,
+  "max-position-embeddings": 4096,
+
+  # architecture design
+  "norm": "layernorm",
+  "pos-emb": "rotary",
+  "rotary_pct": 0.25,
+  "activation": "gelu",
+  "no-weight-tying": true,
+  "gpt-j-residual": true,
+  "output-layer-parallelism": "column",
+
+  # init methods
+  "init_method": "small_init",
+  "output_layer_init_method": "wang_init",
+
+  # fused ops
+  "scaled-upper-triang-masked-softmax-fusion": true,
+  "bias-gelu-fusion": true,
+  "attention-config": [[["flash"], 24]],
+
+  # optimizer settings
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 1.2e-4,
+      "betas": [0.9, 0.95],
+      "eps": 1.0e-8
+    }
+  },
+  "min_lr": 1.2e-5,
+
+  # for all zero_optimization options, see https://www.deepspeed.ai/docs/config-json/#zero-optimizations-for-fp16-training
+  "zero_optimization": {
+    "stage": 1,
+    "allgather_partitions": true,
+    "allgather_bucket_size": 1260000000,
+    "overlap_comm": true,
+    "reduce_scatter": true,
+    "reduce_bucket_size": 1260000000,
+    "contiguous_gradients": true,
+    "cpu_offload": false
+  },
+
+  # batch / data settings
+  "train_micro_batch_size_per_gpu": 4,
+  "gradient_accumulation_steps": 4,
+  "eval_batch_size": 4,
+  "data-impl": "mmap",
+
+  # activation checkpointing
+  "checkpoint-activations": true,
+  "checkpoint-num-layers": 1,
+  "partition-activations": true,
+  "synchronize-each-layer": true,
+
+  # regularization
+  "gradient_clipping": 1.0,
+  "weight-decay": 0.1,
+  "hidden-dropout": 0,
+  "attention-dropout": 0,
+
+  # precision settings
+  "fp16": {
+    "fp16": true,
+    "enabled": true,
+    "loss_scale": 0,
+    "loss_scale_window": 1000,
+    "initial_scale_power": 12,
+    "hysteresis": 2,
+    "min_loss_scale": 1,
+  },
+
+  # misc. training settings
+  "train-iters": 1001,
+  "lr-decay-iters": 1001,
+  "distributed-backend": "nccl",
+  "lr-decay-style": "cosine",
+  "warmup": 0.01,
+  "checkpoint-factor": 100
+  # 1 more than checkpoint-factor to avoid skipping evals if `evaluate` fails
+  "eval-interval": 101,
+  "eval-iters": 100,
+  # early logarithmic save iters:
+  # "extra-save-iters": [0,1,2,4,8,16,32,64,128,256,512,1024,2048],
+  "eval_tasks": [
+    "piqa"
+  ],
+
+  # checkpoint settings
+  "save": "/fsx/jp-llm/ckpts/1b_test",
+  "load": "/fsx/jp-llm/ckpts/1b_test",
+
+  # data settings
+  # "data-path": "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document",
+  "train-data-paths": [
+    "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document"
+  ],
+  "train-data-weights": [
+    1.0
+  ],
+  "valid-data-paths": [
+    "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document"
+  ],
+  "valid-data-weights": [
+    1.0
+  ],
+  "test-data-paths": [
+    "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document"
+  ],
+  "test-data-weights": [
+    1.0
+  ],
+
+  # tokenizer settings
+  "tokenizer-type": "SPMTokenizer",
+  "vocab-file": "/fsx/jp-llm/novelai.model",
+
+  # log settings
+  "log-interval": 50,
+  "steps_per_print": 50,
+  "wall_clock_breakdown": true,
+
+  "use_wandb": true,
+  "wandb_host": "https://stability.wandb.io",
+  "wandb_team": "stability-llm",
+  "wandb_project": "stable-lm-jp",
+  "wandb_group": "1B",
+  "wandb_name": "1B.neox.wiki1",
+
+  # "checkpoint_validation_with_forward_pass": False,
+}
