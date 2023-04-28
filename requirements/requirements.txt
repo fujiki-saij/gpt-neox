@@ -3,7 +3,6 @@ deepspeed
 ftfy>=6.0.1
 git+https://github.com/EleutherAI/lm_dataformat.git@4eec05349977071bf67fc072290b95e31c8dd836
 huggingface_hub>=0.11.0
-lm_eval>=0.3.0
 mpi4py>=3.0.3
 numpy>=1.22.0
 pybind11>=2.6.2
@@ -13,3 +12,20 @@ six
 tiktoken>=0.1.2
 tokenizers>=0.12.1
 transformers>=4.24.0
+# removed lm-eval because we use custom lm_eval
+datasets>=2.0.0
+jsonlines
+numexpr
+openai>=0.6.4
+omegaconf>=2.2
+peft>=0.2.0
+pybind11>=2.6.2
+pycountry
+pytablewriter
+rouge-score>=0.0.4
+sacrebleu==1.5.0
+scikit-learn>=0.24.1
+sqlitedict
+torch>=1.7
+tqdm-multiprocess
+zstandard

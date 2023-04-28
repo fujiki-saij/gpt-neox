@@ -296,6 +296,12 @@ class NeoXArgs(*BASE_CLASSES):
             help="Optionally overwrite eval tasks to run for evaluate.py",
         )
         group.add_argument(
+            "--eval_num_fewshot",
+            type=int,
+            default=0,
+            help="number of fewshots during evaluation"
+        )
+        group.add_argument(
             "--iteration",
             type=int,
             default=None,
