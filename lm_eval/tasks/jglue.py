@@ -270,10 +270,10 @@ class JCommonsenseQA(MultipleChoiceTask):
     """
     prompt format refered to [日本語に特化した60億パラメータ規模のGPTモデルの構築と評価](https://www.anlp.jp/proceedings/annual_meeting/2023/pdf_dir/H9-4.pdf)
     """
-    VERSION = 0
+    VERSION = 1.1
     DATASET_PATH = "shunk031/JGLUE"
     DATASET_NAME = "JCommonsenseQA"
-    PROMPT = "[問題]に対する[答え]を[選択肢]の中から選んでください。\n\n"
+    DESCRIPTION = "[問題]に対する[答え]を[選択肢]の中から選んでください。\n\n"
 
     def has_training_docs(self):
         return True
@@ -293,16 +293,15 @@ class JCommonsenseQA(MultipleChoiceTask):
         return map(self._process_doc, self.dataset["validation"])
 
     def _process_doc(self, doc):
-        # TODO: Process the documents into a dictionary with the following keys:
         return {
-            "query": doc["question"],
-            "choices": [doc['choice0'], doc["choice1"], doc["choice2"], doc["choice3"], doc["choice4"]],  # The list of choices.
+            "goal": doc["question"],
+            "choices": [doc[f"choice{i}"] for i in range(5)],
             "gold": doc["label"], 
         }
 
     def doc_to_text(self, doc):
         """
-        [問題]: query
+        [問題]: goal
         [選択肢]:
         0. choice0
         1. choice1
@@ -310,17 +309,20 @@ class JCommonsenseQA(MultipleChoiceTask):
         4. choice4
         [答え]:
         """
-        # return f"質問: {doc['query']}\n\n回答:"
+        # return f"質問: {doc['goal']}\n\n回答:"
         # flat_choices = "".join([f"{idx}. {c}\n"for idx, c in enumerate(doc["choices"])])
-        choices_str = str(doc['choices'])
-        return f"[問題]: {doc['query']}\n[選択肢]: {choices_str}\n[答え]: "
+        return (
+            f"[問題]: {doc['goal']}\n"
+            f"[選択肢]: [{', '.join(doc['choices'])}]\n"
+            "[答え]:"
+        )
     
     def construct_requests(self, doc, ctx):
-        ctx = self.PROMPT + ctx
+        ctx = self.DESCRIPTION + ctx
         return super().construct_requests(doc, ctx)        
     
     def should_decontaminate(self):
         return True
 
     def doc_to_decontamination_query(self, doc):
-        return doc["query"]
+        return doc["goal"]
