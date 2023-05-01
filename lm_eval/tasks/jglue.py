@@ -37,10 +37,12 @@ class JSQuAD(Task):
     """
     prompt format refered to [日本語に特化した60億パラメータ規模のGPTモデルの構築と評価](https://www.anlp.jp/proceedings/annual_meeting/2023/pdf_dir/H9-4.pdf)
     """
-    VERSION = 0
+    VERSION = 1.1
     DATASET_PATH = "shunk031/JGLUE"
     DATASET_NAME = "JSQuAD"
+    DESCRIPTION = "[題名]と[問題]から[質問]に対する[答え]を抜き出しなさい\n\n"
     SEP = "\n" # "\n" is not detected in rinna's tokenizer
+    UNANSWERABLE = "答えられない"
     REMOVE_IDS = []
     # REMOVE_IDS = ['a10743p19q0', 'a10743p19q1', 'a10743p19q2', 'a10743p19q3', 'a13221p1q0', 'a13221p1q1', 'a13221p1q2', 'a13221p1q3', 'a14985p1q0', 'a14985p1q1', 'a14985p1q2', 'a14985p1q3', 'a14985p1q4', 'a14985p93q0', 'a14985p93q1', 'a14985p93q2', 'a14985p93q3', 'a14985p93q4', 'a1540503p36q0', 'a1540503p36q1', 'a1540503p36q2', 'a1540503p36q3', 'a1540503p36q4', 'a18783p1q0', 'a18783p3q0', 'a18783p3q1', 'a18783p3q2', 'a18783p8q0', 'a18873p25q0', 'a18873p25q1', 'a18873p25q2', 'a18873p25q3', 'a18873p26q0', 'a18873p26q1', 'a18873p26q2', 'a20898p10q0', 'a20898p15q0', 'a20898p15q1', 'a20898p15q2', 'a20898p15q3', 'a2164640p22q0', 'a2164640p22q1', 'a2164640p22q2', 'a2164640p22q3', 'a2164640p22q4', 'a22392p20q0', 'a22392p20q1', 'a22392p20q2', 'a22392p20q3', 'a3011628p3q0', 'a3011628p3q1', 'a3011628p3q2', 'a3011628p3q3', 'a3189p4q0', 'a3189p4q1', 'a3189p4q2', 'a369953p0q0', 'a369953p0q1', 'a369953p0q2', 'a369953p0q3', 'a3949p1q0', 'a3949p1q1', 'a4596p0q0', 'a4596p0q1', 'a4596p0q2', 'a4596p0q3', 'a4596p1q0', 'a4596p1q1', 'a4596p1q2', 'a4596p1q3', 'a4596p1q4', 'a4596p38q0', 'a4596p38q1', 'a4596p38q2', 'a4596p38q3', 'a4596p38q4', 'a4768p13q0', 'a4768p13q1', 'a4768p13q2', 'a4768p3q0', 'a4768p3q1', 'a4768p3q2', 'a4768p3q3', 'a4768p8q0', 'a4768p8q1', 'a4768p8q2', 'a51481p0q0', 'a51481p0q1', 'a51481p0q2', 'a51481p10q0', 'a51481p10q1', 'a51481p10q2', 'a51481p10q3', 'a51481p6q0', 'a51481p6q1', 'a51481p6q2', 'a51481p6q3', 'a51481p7q0', 'a51481p7q1', 'a67892p11q0', 'a67892p11q1', 'a67892p11q2', 'a67892p11q3', 'a67892p2q0', 'a8874p6q0', 'a8874p6q1', 'a916079p3q0', 'a916079p3q1', 'a95156p4q0', 'a95156p4q1', 'a95156p4q2', 'a95156p4q3', 'a95156p6q0', 'a95156p6q1', 'a95156p6q2', 'a95156p6q3']
     """
@@ -126,12 +128,9 @@ class JSQuAD(Task):
             language description, as well as the few shot examples, and the question
             part of the document for `doc`.
         """
-        prompt = "[題名]と[問題]から[質問]に対する[答え]を抜き出しなさい\n\n"
-        ctx = prompt + ctx
         continuation = rf.greedy_until(ctx, [self.SEP])
-        # is_unanswerable = rf.loglikelihood(ctx, " " + "unanswerable")
-        # return continuation, is_unanswerable
-        return continuation
+        is_unanswerable = rf.loglikelihood(ctx, " " + self.UNANSWERABLE)
+        return continuation, is_unanswerable
 
     def process_results(self, doc, results):
         """Take a single document and the LM results and evaluates, returning a
@@ -143,13 +142,12 @@ class JSQuAD(Task):
         :param results:
             The results of the requests created in construct_requests.
         """
-        # continuation, (logprob_unanswerable, _) = results
-        # no_answer_probability = exp(logprob_unanswerable)
-        continuation = results
+        continuation, (logprob_unanswerable, _) = results
+        no_answer_probability = exp(logprob_unanswerable)
         predictions = {
             "id": doc["id"],
             "prediction_text": continuation,
-            # "no_answer_probability": no_answer_probability,
+            "no_answer_probability": no_answer_probability,
         }
 
         references = {
@@ -195,6 +193,7 @@ class JSQuAD(Task):
             A dictionary where keys are the names of submetrics and values are
             functions that aggregate a list of metric scores
         """
+        # TODO: find a good way to cache the result from _squad_agg to minimalize compute cost 
         return {
             "exact": partial(
                 _squad_agg, "exact"
@@ -241,6 +240,7 @@ class JSQuAD(Task):
 
 
 class JaQuAD(JSQuAD):
+    VERSION = 0.1
     DATASET_PATH = "SkelterLabsInc/JaQuAD"
     DATASET_NAME = None
 
@@ -316,10 +316,6 @@ class JCommonsenseQA(MultipleChoiceTask):
             f"[選択肢]: [{', '.join(doc['choices'])}]\n"
             "[答え]:"
         )
-    
-    def construct_requests(self, doc, ctx):
-        ctx = self.DESCRIPTION + ctx
-        return super().construct_requests(doc, ctx)        
     
     def should_decontaminate(self):
         return True
