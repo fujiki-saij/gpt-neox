@@ -245,6 +245,12 @@ class NeoXArgsModel(NeoXArgsTemplate):
     determine whether FIM data processing is done at the token or character level, if any FIM processing is done.
     """
 
+    fim_spm_rate: float = 0.5
+    """
+    Probability that the a FIM sample uses the SPM format over the PSM format.
+    At 1, exclusively train with SPM. At 0, exclusively train with PSM.
+    """
+
     make_vocab_size_divisible_by: int = 128
     """
     Pad the vocab size to be divisible by this value. This is added for computational efficiency reasons.
@@ -697,14 +703,17 @@ class NeoXArgsTokenizer(NeoXArgsTemplate):
 
     tokenizer_type: Literal[
         "GPT2BPETokenizer",
+        "GPT2BPETokenizerWithFIM",
         "HFTokenizer",
+        "HFTokenizerWithFIM",
         "HFGPT2Tokenizer",
+        "HFGPT2TokenizerWithFIM",
         "SPMTokenizer",
         "CharLevelTokenizer",
         "TiktokenTokenizer",
     ] = "GPT2BPETokenizer"
     """
-    Type of tokenizer to use - should be one of ["GPT2BPETokenizer", "HFTokenizer", "HFGPT2Tokenizer", "SPMTokenizer", "CharLevelTokenizer", "TiktokenTokenizer"]
+    Type of tokenizer to use - should be one of ["GPT2BPETokenizer", "GPT2BPETokenizerWithFIM", "HFTokenizer", "HFTokenizerWithFIM", "HFGPT2Tokenizer", "HFGPT2TokenizerWithFIM", "SPMTokenizer", "CharLevelTokenizer", "TiktokenTokenizer"]
     """
 
     padded_vocab_size: int = None

@@ -45,6 +45,7 @@ class GPT2Dataset(torch.utils.data.Dataset):
         self.seed = seed
         self.indexed_dataset = indexed_dataset
         self.neox_args = neox_args
+        self.tokenizer = neox_args.tokenizer
 
         self.np_rng = np.random.RandomState(seed=seed) # rng state for FIM
 
@@ -52,7 +53,7 @@ class GPT2Dataset(torch.utils.data.Dataset):
         if fim_rate != 0:
             # Add special tokens to the tokenizer
             try:
-                self.suffix_tok_id, self.prefix_tok_id, self.middle_tok_id, self.pad_tok_id = (self.tokenizer.special_tokens[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE, FIM_PAD])
+                self.suffix_tok_id, self.prefix_tok_id, self.middle_tok_id, self.pad_tok_id = (self.tokenizer.vocab[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE, FIM_PAD])
             except KeyError:
                 self.suffix_tok_id, self.prefix_tok_id, self.middle_tok_id, self.pad_tok_id = (self.tokenizer.vocab[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE, FIM_PAD])
 
@@ -388,7 +389,7 @@ def permute(sample, np_rng, neox_args, truncate_or_pad=True):
     fim_rate = neox_args.fim_rate
     tokenizer = neox_args.tokenizer
 
-    suffix_tok_id, prefix_tok_id, middle_tok_id = [tokenizer.special_tokens[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE]]
+    suffix_tok_id, prefix_tok_id, middle_tok_id = [tokenizer.vocab[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE]]
 
     if np_rng.binomial(1, fim_rate): # sample bernoulli dist
         
@@ -398,8 +399,9 @@ def permute(sample, np_rng, neox_args, truncate_or_pad=True):
         else: # token level FIM
             contents = sample
             sample_size = contents.shape[0]
+
         try:
-            boundaries = list(np_rng.randint(low=1, high=sample_size - 1, size=2))
+            boundaries = list(np_rng.randint(low=0, high=sample_size + 1, size=2))
             boundaries.sort()
         except ValueError as e:
             print(len(contents), contents)

@@ -54,6 +54,9 @@ def build_tokenizer(args):
     elif args.tokenizer_type.lower() == "HFTokenizer".lower():
         assert args.vocab_file is not None
         tokenizer = HFTokenizer(args.vocab_file)
+    elif args.tokenizer_type.lower() == "HFTokenizerWithFIM".lower():
+        assert args.vocab_file is not None
+        tokenizer = HFTokenizer(args.vocab_file, special_tokens=[FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX, FIM_PAD])
     elif args.tokenizer_type.lower() == "HFGPT2Tokenizer".lower():
         if args.vocab_file is None:
             print(
@@ -254,11 +257,12 @@ class SentencePieceTokenizer(AbstractTokenizer):
 class HFTokenizer(AbstractTokenizer):
     """Designed to Integrate HF's Tokenizer library."""
 
-    def __init__(self, vocab_file):
+    def __init__(self, vocab_file, special_tokens=[]):
         name = "HFTokenizer"
         super().__init__(name)
 
         self.tokenizer = Tokenizer.from_file(vocab_file)
+        self.tokenizer.add_special_tokens(special_tokens)
         self.eod_id = self.tokenizer.token_to_id("<|endoftext|>")
         self.pad_id = self.tokenizer.token_to_id("<|padding|>")
 
@@ -307,7 +311,7 @@ class HFGPT2Tokenizer(AbstractTokenizer):
         else:
             self.tokenizer = GPT2Tokenizer.from_pretrained(vocab_file)
 
-        self.tokenizer.add_special_tokens({"additional_special_tokens": special_tokens})
+        self.tokenizer.add_special_tokens(special_tokens)
         self.eod_id = self.tokenizer.eos_token_id
         self.pad_id = self.tokenizer.pad_token_id
 
