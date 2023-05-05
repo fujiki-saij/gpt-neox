@@ -27,6 +27,12 @@ import sentencepiece as spm
 from typing import List, Union
 from .gpt2_tokenization import GPT2Tokenizer
 
+FIM_PREFIX = "<fim_prefix>"
+FIM_MIDDLE = "<fim_middle>"
+FIM_SUFFIX = "<fim_suffix>"
+FIM_PAD = "<fim_pad>"
+EOD = "<|endoftext|>"
+
 
 def build_tokenizer(args):
     """Initialize tokenizer."""
@@ -38,6 +44,10 @@ def build_tokenizer(args):
         assert args.vocab_file is not None
         assert args.merge_file is not None
         tokenizer = _GPT2BPETokenizer(args.vocab_file, args.merge_file)
+    if args.tokenizer_type.lower() == "GPT2BPETokenizerWithFIM".lower():
+        assert args.vocab_file is not None
+        assert args.merge_file is not None
+        tokenizer = _GPT2BPETokenizer(args.vocab_file, args.merge_file, special_tokens=[FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX, FIM_PAD])
     elif args.tokenizer_type.lower() == "SPMTokenizer".lower():
         assert args.vocab_file is not None
         tokenizer = SentencePieceTokenizer(args.vocab_file)
@@ -50,6 +60,12 @@ def build_tokenizer(args):
                 "WARNING: No vocab file found, loading Huggingface's pretrained GPT2Tokenizer"
             )
         tokenizer = HFGPT2Tokenizer(args.vocab_file)
+    elif args.tokenizer_type.lower() == "HFGPT2TokenizerWithFIM".lower():
+        if args.vocab_file is None:
+            print(
+                "WARNING: No vocab file found, loading Huggingface's pretrained GPT2Tokenizer"
+            )
+        tokenizer = HFGPT2Tokenizer(args.vocab_file, special_tokens=[EOD, FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX, FIM_PAD])
     elif args.tokenizer_type.lower() == "CharLevelTokenizer".lower():
         tokenizer = CharLevelTokenizer(vocab_size=512)
     elif args.tokenizer_type.lower() == "TiktokenTokenizer".lower():
@@ -71,6 +87,12 @@ def _vocab_size_with_padding(orig_vocab_size, args):
     still having GPU friendly size."""
 
     after = orig_vocab_size
+    
+    # add in extra sentinel tokens first
+    if not hasattr(args, 'extra_sentinel_tokens'):
+        args.extra_sentinel_tokens = 0
+    after = after + args.extra_sentinel_tokens
+    # then pad for computational efficiency
     multiple = args.make_vocab_size_divisible_by * args.model_parallel_size
     while (after % multiple) != 0:
         after += 1
@@ -150,12 +172,12 @@ class AbstractTokenizer(ABC):
 class _GPT2BPETokenizer(AbstractTokenizer):
     """Original GPT2 BPE tokenizer."""
 
-    def __init__(self, vocab_file, merge_file):
+    def __init__(self, vocab_file, merge_file, special_tokens=[]):
         name = "GPT2 BPE"
         super().__init__(name)
 
         self.tokenizer = GPT2Tokenizer(
-            vocab_file, merge_file, errors="replace", special_tokens=[], max_len=None
+            vocab_file, merge_file, errors="replace", special_tokens=special_tokens, max_len=None
         )
         self.eod_id = self.tokenizer.encoder["<|endoftext|>"]
 
@@ -176,6 +198,10 @@ class _GPT2BPETokenizer(AbstractTokenizer):
 
     def detokenize(self, token_ids):
         return self.tokenizer.decode(token_ids)
+
+    @property
+    def pad(self):
+        return self.pad_id
 
     @property
     def eod(self):
@@ -217,6 +243,10 @@ class SentencePieceTokenizer(AbstractTokenizer):
         return self.tokenizer.decode(token_ids)
 
     @property
+    def pad(self):
+        return self.pad_id
+
+    @property
     def eod(self):
         return self.eod_id
 
@@ -254,6 +284,10 @@ class HFTokenizer(AbstractTokenizer):
         return self.tokenizer.decode(token_ids)
 
     @property
+    def pad(self):
+        return self.pad_id
+
+    @property
     def eod(self):
         return self.eod_id
 
@@ -261,7 +295,7 @@ class HFTokenizer(AbstractTokenizer):
 class HFGPT2Tokenizer(AbstractTokenizer):
     """Designed to Integrate the pretrained OpenAI GPT2 Tokenizers from HF"""
 
-    def __init__(self, vocab_file=None, fast=True):
+    def __init__(self, vocab_file=None, fast=True, special_tokens=[]):
         name = "HFGPT2Tokenizer"
         if fast:
             name += "Fast"
@@ -273,7 +307,7 @@ class HFGPT2Tokenizer(AbstractTokenizer):
         else:
             self.tokenizer = GPT2Tokenizer.from_pretrained(vocab_file)
 
-        self.tokenizer.add_special_tokens({"pad_token": "<|padding|>"})
+        self.tokenizer.add_special_tokens({"additional_special_tokens": special_tokens})
         self.eod_id = self.tokenizer.eos_token_id
         self.pad_id = self.tokenizer.pad_token_id
 
@@ -299,6 +333,10 @@ class HFGPT2Tokenizer(AbstractTokenizer):
 
     def detokenize(self, token_ids):
         return self.tokenizer.decode(token_ids)
+
+    @property
+    def pad(self):
+        return self.pad_id
 
     @property
     def eod(self):
@@ -344,6 +382,10 @@ class CharLevelTokenizer(AbstractTokenizer):
 
     def detokenize(self, token_ids):
         return "".join(list(map(self.decode_token, token_ids)))
+
+    @property
+    def pad(self):
+        return self.pad_id
 
     @property
     def eod(self):
