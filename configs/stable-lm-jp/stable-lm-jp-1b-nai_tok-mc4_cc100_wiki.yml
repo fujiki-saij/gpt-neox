@@ -80,44 +80,63 @@
   },
 
   # misc. training settings
-  "train-iters": 1001,
-  "lr-decay-iters": 1001,
+  "train-iters": 180000,
+  "lr-decay-iters": 180000,
   "distributed-backend": "nccl",
   "lr-decay-style": "cosine",
   "warmup": 0.01,
-  "checkpoint-factor": 100
+  "checkpoint-factor": 1000,
   # 1 more than checkpoint-factor to avoid skipping evals if `evaluate` fails
-  "eval-interval": 101,
-  "eval-iters": 100,
+  "eval-interval": 1001,
+  "eval-iters": 10,
   # early logarithmic save iters:
   # "extra-save-iters": [0,1,2,4,8,16,32,64,128,256,512,1024,2048],
   "eval_tasks": [
-    "piqa"
+    "jcommonsenseqa"
   ],
 
+  # wandb settings
+  "use_wandb": true,
+  "wandb_host": "https://stability.wandb.io",
+  "wandb_team": "stability-llm",
+  "wandb_project": "stable-lm-jp",
+  "wandb_group": "1B",
+  "wandb_name": "1B.nai.mc4_cc100_wiki.bs_4m.tp_1.dtype_int64",
+
   # checkpoint settings
-  "save": "/fsx/jp-llm/ckpts/1b_test",
-  "load": "/fsx/jp-llm/ckpts/1b_test",
+  "save": "/fsx/jp-llm/ckpts/1b_tok=nai_data=mc4-cc100-wiki_bs=4m_tp=1_pp=1_init=wang-small-init_dtype=int64",
+  "load": "/fsx/jp-llm/ckpts/1b_tok=nai_data=mc4-cc100-wiki_bs=4m_tp=1_pp=1_init=wang-small-init_dtype=int64",
 
   # data settings
-  # "data-path": "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document",
   "train-data-paths": [
+    "/fsx/jp-llm/merged/mc4/mc4_text_document",
+    "/fsx/jp-llm/merged/cc-100/cc-100_text_document",
     "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document"
   ],
   "train-data-weights": [
-    1.0
+    74.77,
+    23.43,  
+    1.78
   ],
   "valid-data-paths": [
+    "/fsx/jp-llm/merged/mc4/mc4_text_document",
+    "/fsx/jp-llm/merged/cc-100/cc-100_text_document",
     "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document"
   ],
   "valid-data-weights": [
-    1.0
+    74.77,
+    23.43,  
+    1.78
   ],
   "test-data-paths": [
+    "/fsx/jp-llm/merged/mc4/mc4_text_document",
+    "/fsx/jp-llm/merged/cc-100/cc-100_text_document",
     "/fsx/jp-llm/merged/wikipedia/wikipedia_text_document"
   ],
   "test-data-weights": [
-    1.0
+    74.77,
+    23.43,  
+    1.78
   ],
 
   # tokenizer settings
@@ -125,16 +144,13 @@
   "vocab-file": "/fsx/jp-llm/novelai.model",
 
   # log settings
-  "log-interval": 50,
-  "steps_per_print": 50,
+  "log-interval": 10,
+  "steps_per_print": 10,
   "wall_clock_breakdown": true,
 
-  "use_wandb": true,
-  "wandb_host": "https://stability.wandb.io",
-  "wandb_team": "stability-llm",
-  "wandb_project": "stable-lm-jp",
-  "wandb_group": "1B",
-  "wandb_name": "1B.neox.wiki1",
-
   # "checkpoint_validation_with_forward_pass": False,
+
+  # multi-node launcher
+  "launcher": "slurm",
+  "deepspeed_slurm": true
 }

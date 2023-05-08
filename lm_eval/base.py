@@ -609,7 +609,12 @@ class Task(abc.ABC):
                 "WARNING: provide_description is deprecated and will be removed in a future version in favor of description_dict"
             )
 
-        description = description + "\n\n" if description else ""
+        if description:
+            description += "\n\n"
+        elif hasattr(self, "DESCRIPTION"):
+            description = self.DESCRIPTION
+        else:
+            description = ""
 
         if num_fewshot == 0:
             labeled_examples = ""
