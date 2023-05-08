@@ -4,13 +4,14 @@
 #SBATCH --partition=g40
 #SBATCH --cpus-per-task=12
 #SBATCH --gpus=1
+#SBATCH --mem-per-cpu=11G
 #SBATCH --output=/fsx/home-mkshing/slurm_outs/%x_%j.out
 #SBATCH --error=/fsx/home-mkshing/slurm_outs/%x_%j.err
 
 
-MODEL_ARGS="pretrained=abeja/gpt-neox-japanese-2.7b,low_cpu_mem_usage=True"
-# MODEL_ARGS="pretrained=rinna/japanese-gpt-1b,use_fast=False"
-# MODEL_ARGS="pretrained=naclbit/gpt-j-japanese-6.8b,low_cpu_mem_usage=True"
+# MODEL_ARGS="pretrained=abeja/gpt-neox-japanese-2.7b,low_cpu_mem_usage=True"
+MODEL_ARGS="pretrained=rinna/japanese-gpt-1b,use_fast=False"
+# MODEL_ARGS="pretrained=naclbit/gpt-j-japanese-6.8b,low_cpu_mem_usage=True" <- hasn't released the weight yet
 TASK="jsquad,jaquad" # jsquad, jaquad, jcommonsenseqa
 source /fsx/home-mkshing/venv/nlp/bin/activate
 python scripts/lm_harness_main.py \
