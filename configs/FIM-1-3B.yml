@@ -95,9 +95,9 @@
   "wall_clock_breakdown": true,
 
   #  "merge-file": "./20b_checkpoints/merges.txt",
-  "save": "/fsx/neox-fim/FIMlogs/ckpts/1.3B-FIM-0.5-SPM-0.5-Pile-8-30-22-rotary-16nodes",
-  "load": "/fsx/neox-fim/FIMlogs/ckpts/1.3B-FIM-0.5-SPM-0.5-Pile-8-30-22-rotary-16nodes",
-
+  "save": "/fsx/neox-fim/FIMlogs/ckpts/1.3B-FIM-0.5-Pile-8-30-22-rotary-16nodes",
+  "load": "/fsx/neox-fim/FIMlogs/ckpts/1.3B-FIM-0.5-Pile-8-30-22-rotary-16nodes",
+# /fsx/code-fim/FIMlogs/ckpts/1.3B-FIM-10-8-22-rotary-6MtokBS
   # If finetuning, edit the following to the location of your finetuning dataset:
   "data-path": "/fsx/pile/pile_20B_tokenizer_text_document",
   # "train-data-paths": ["pile_20B_tokenizer_text_document"],
@@ -106,10 +106,10 @@
 
   "extra-sentinel-tokens": 3,
   "fim-rate": 0.5,
-  "fim-spm-rate": 0.5,
+  "fim-spm-rate": 0.,
 
   ### NEW DATA: ####
-  "tokenizer_type": "HFTokenizer",
+  "tokenizer_type": "HFTokenizerWithFIM",
   "vocab-file": "/fsx/pile/20B_tokenizer.json",
 
   "tensorboard-dir": "/fsx/neox-fim/FIMlogs/1.3B-FIM-0.5-SPM-0.5-Pile-8-30-22-rotary",

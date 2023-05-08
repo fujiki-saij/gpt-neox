@@ -448,7 +448,7 @@ def generate_samples_from_fim_prompt(
     # generate completions
     generated_texts = []
     while True:
-        model.module.clear_cache()  # clear kv cache between batches
+        # model.module.clear_cache()  # clear kv cache between batches
 
         start_time = time.time()
         # Tokenize text, and check whether we should terminate process
@@ -494,10 +494,17 @@ def generate_samples_from_fim_prompt(
         if terminate_runs == 1:
             return generated_texts
 
+                # tokens (completions from model),
+                # token_generation_start_index (token index per batch item for the first generated token),
+                # token_generation_end_index (token index per batch item for the last generated token),
+                # logits (logits which are so far computed, zeros otherwise),
+                # is_done (flag for each bach item indicating whether an eod token was generated)
+
         for (
             batch_context_tokens,
             batch_token_generation_start_index,
             batch_token_generation_end_index,
+            batch_generation_logits,
             is_done,
         ) in stream_tokens(
             neox_args=neox_args,

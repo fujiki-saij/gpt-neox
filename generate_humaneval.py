@@ -28,7 +28,7 @@ def main():
     """
     Generate text/sample model
     """
-    os.environ['TORCH_EXTENSIONS_DIR'] = '/fsx/code-fim/.cache/'
+    # os.environ['TORCH_EXTENSIONS_DIR'] = '/fsx/code-fim/.cache/'
     model, neox_args = setup_for_inference_or_eval(use_cache=False)
     if neox_args.recompute:
         model.module.inference_mode(
