@@ -788,6 +788,41 @@ class NeoXArgsTraining(NeoXArgsTemplate):
     Warm up mmap files.
     """
 
+    s3_path: str = None
+    """
+    Path to s3 bucket.
+    """
+
+    s3_region: str = None
+    """
+    AWS region of s3 bucket.
+    """
+
+    heartbeat_init_timeout: int = 300
+    """
+    Timeout for initializing ranks. If a rank does not initialize within this time, the program will exit.
+    """
+
+    heartbeat_timeout: int = 300
+    """
+    Timeout for heartbeats between ranks. If a rank does not send a heartbeat within this time, the program will exit.
+    """
+    
+    kill_timeout: int = 30
+    """
+    Timeout for killing a rank. If a rank does not exit within this time, the program will kill it.
+    """
+
+    save_interval_timeout: int = 1_200
+    """
+    Timeout for saving a checkpoint. If a rank does not save a checkpoint within this time, the program will exit.
+    """
+
+    eval_interval_timeout: int = 1_200
+    """
+    Timeout for running evaluation. If a rank does not finish evaluation within this time, the program will exit.
+    """
+
     save: str = None
     """
     Output directory to save checkpoints to.
