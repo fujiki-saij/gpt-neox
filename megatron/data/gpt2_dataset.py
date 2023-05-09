@@ -123,7 +123,6 @@ class GPT2Dataset(torch.utils.data.Dataset):
 
             if fim_rate != 0:
                 assert (fim_rate <= 1 and fim_rate >= 0), "FIM rate must be a probability 0 <= rate <= 1"
-                print(f"Applying FIM to {self.name} dataset with rate {fim_rate}")
 
                 eod = self.neox_args.tokenizer.eod
                 segment_breaks = np.argwhere(sample == eod) # split sample by document
