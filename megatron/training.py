@@ -30,6 +30,7 @@ import deepspeed
 # from deepspeed.runtime.data_pipeline.curriculum_scheduler import CurriculumScheduler
 import numpy as np
 
+from CPCargo import CheckpointCargo, Heartbeat
 from megatron.utils import (
     Timers,
     init_wandb,
@@ -183,9 +184,26 @@ def pretrain(neox_args):
     timers = Timers(
         use_wandb=neox_args.use_wandb, tensorboard_writer=neox_args.tensorboard_writer
     )
+    # initialize CheckpointCargo, the rank 0 of each host so that we don't have to worry about multiple ranks uploading the same checkpoint
+    
+    # if neox_args.local_rank == 0:
+    #     CG = CheckpointCargo(
+    #         src_dir=neox_args.save,
+    #         dst_url=neox_args.s3_path,
+    #         region=neox_args.s3_region,
+    #         file_regex=r'.*',
+    #         recursive=True
+    #     )
+    
+
+
 
     # Initialize and get arguments, timers, and Tensorboard writer.
+    hb = Heartbeat(timeout=neox_args.heartbeat_timeout, kill_timeout=neox_args.kill_timeout)
+    hb.start(neox_args.heartbeat_init_timeout)
     initialize_megatron(neox_args=neox_args)
+    hb.stop()
+    print_rank_0("Megatron initialized.")
 
     # Model, optimizer, and learning rate.
     timers("model and optimizer").start()
@@ -210,11 +228,13 @@ def pretrain(neox_args):
     print_rank_0("done with setups ...")
     timers.log(["model and optimizer", "train/valid/test data iterators"])
     print_rank_0("training ...")
-
+    # if neox_args.local_rank == 0:
+    #     CG.start()
     iteration = neox_args.iteration
     if neox_args.do_train and neox_args.train_iters > 0:
         # edge case: save step 0 checkpoint if requested and we're starting from step 0
         if neox_args.save and 0 in neox_args.save_iters and iteration == 0:
+            hb.start(neox_args.save_interval_timeout)
             save_checkpoint(
                 neox_args=neox_args,
                 iteration=iteration,
@@ -222,6 +242,7 @@ def pretrain(neox_args):
                 optimizer=optimizer,
                 lr_scheduler=lr_scheduler,
             )
+            hb.stop()
 
         iteration = train(
             neox_args=neox_args,
@@ -231,10 +252,12 @@ def pretrain(neox_args):
             lr_scheduler=lr_scheduler,
             train_data_iterator=train_data_iterator,
             valid_data_iterator=valid_data_iterator,
+            hb=hb,
         )
 
     if neox_args.do_valid:
         prefix = "the end of training for val data"
+        hb.start(neox_args.eval_interval_timeout)
         evaluate_and_print_results(
             neox_args=neox_args,
             prefix=prefix,
@@ -245,8 +268,10 @@ def pretrain(neox_args):
             verbose=False,
             timers=timers,
         )
+        hb.stop()
 
     if neox_args.save and iteration != 0:
+        hb.start(neox_args.save_interval_timeout)
         save_checkpoint(
             neox_args=neox_args,
             iteration=iteration,
@@ -254,9 +279,14 @@ def pretrain(neox_args):
             optimizer=optimizer,
             lr_scheduler=lr_scheduler,
         )
+        hb.stop()
+    # if neox_args.local_rank == 0:
+    #     CG.stop()
+    #     # sleep for 5 seconds to allow for the last checkpoint to be uploaded
 
     if neox_args.do_test:
         # Run on test data.
+        hb.start(neox_args.eval_interval_timeout)
         prefix = "the end of training for test data"
         evaluate_and_print_results(
             neox_args=neox_args,
@@ -269,6 +299,11 @@ def pretrain(neox_args):
             timers=timers,
             chart_name="test",
         )
+        hb.stop()
+    
+
+    del hb
+    hb = None
 
 
 def _get_batch(neox_args, tokenizer, keys, data, datatype):
@@ -720,6 +755,8 @@ def train_step(neox_args, timers, data_iterator, model, optimizer, lr_scheduler)
         }  # reduces losses across machines for logging
 
     if neox_args.precision == "fp16" and model.optimizer.overflow:
+        # add checking loss scale overflow such as average window of previous loss with std
+        # also have a maximum number of skips
         skipped_iter = 1
     else:
         skipped_iter = 0
@@ -754,6 +791,7 @@ def train(
     lr_scheduler,
     train_data_iterator,
     valid_data_iterator,
+    hb,
 ):
     """Train the model function."""
 
@@ -775,6 +813,7 @@ def train(
     # to monitor if we've skipped many iterations in a row and trigger an early exit
     overflow_monitor = OverflowMonitor(optimizer)
     while iteration < neox_args.train_iters:
+        hb.pulse()
         loss_dict, skipped_iter = train_step(
             neox_args=neox_args,
             timers=timers,
@@ -815,6 +854,7 @@ def train(
 
         # Checkpointing
         if neox_args.save and iteration in neox_args.save_iters:
+            hb.start(neox_args.save_interval_timeout)
             save_checkpoint(
                 neox_args=neox_args,
                 iteration=iteration,
@@ -822,6 +862,7 @@ def train(
                 optimizer=optimizer,
                 lr_scheduler=lr_scheduler,
             )
+            hb.stop()
 
         # Evaluation
         if (
@@ -829,6 +870,7 @@ def train(
             and iteration % neox_args.eval_interval == 0
             and neox_args.do_valid
         ):
+            hb.start(neox_args.eval_interval_timeout)
             prefix = "iteration {}".format(iteration)
             evaluate_and_print_results(
                 neox_args=neox_args,
@@ -840,6 +882,7 @@ def train(
                 verbose=False,
                 timers=timers,
             )
+            hb.stop()
 
         if neox_args.exit_interval and iteration % neox_args.exit_interval == 0:
             torch.distributed.barrier()
