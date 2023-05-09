@@ -21,6 +21,7 @@ import argparse
 import multiprocessing
 import os
 import sys
+import math
 
 import lm_dataformat as lmd
 import numpy as np
@@ -138,6 +139,9 @@ def get_args():
         default=100,
         help="Interval between progress updates",
     )
+    parser.add_argument(
+        "--n_chunks", type=int, default=None, help="number of chunks of files"
+    )
     args = parser.parse_args()
     args.keep_empty = False
 
@@ -168,6 +172,12 @@ def yield_from_files(fnames: list, semaphore):
         yield from yielder(fname, semaphore)
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
 def main():
     args = get_args()
     encoder = Encoder(args)
@@ -175,72 +185,86 @@ def main():
     print(f"Vocab size: {tokenizer.vocab_size}")
     print(f"Output prefix: {args.output_prefix}")
 
-    # build a semaphore object to stop `yield_from_files` from getting ahead of encoder.encode and
-    # hence building up memory
-    semaphore = Semaphore(10000 + args.workers)
-
-    # use multiprocessing to iterate over input documents
-    fin = yield_from_files(args.input.split(","), semaphore)
-
-    if args.workers > 1:
-        pool = multiprocessing.Pool(args.workers, initializer=encoder.initializer)
-        encoded_docs = pool.imap(encoder.encode, fin, chunksize=25)
+    files = args.input.split(",")
+    if args.n_chunks is not None:
+        assert args.n_chunks > 0
+        chunk_num = math.ceil(len(files) / args.n_chunks)
+        input_chunks = list(chunks(files, chunk_num))
+        print(f"number of chunks: {len(input_chunks)}")
     else:
-        encoder.initializer()
-        encoded_docs = (encoder.encode(doc) for doc in fin)
+        input_chunks = [files]
+    
+    for chunk_idx, input_files in tqdm.tqdm(enumerate(input_chunks)):
+        if len(input_chunks) == 1:
+            chunk_str = ""
+        else:
+            chunk_str = f"_{chunk_idx}"
+        # build a semaphore object to stop `yield_from_files` from getting ahead of encoder.encode and
+        # hence building up memory
+        semaphore = Semaphore(10000 + args.workers)
 
-    # make a dataset builder for each key in args.jsonl_keys
-    # each key will output to a different file beginning with args.output_prefix
-    output_bin_files = {}
-    output_idx_files = {}
-    builders = {}
-    parent_dir = os.path.dirname(args.output_prefix)
-    if not os.path.exists(parent_dir):
-        os.makedirs(parent_dir, exist_ok=True)
-    for key in args.jsonl_keys:
-        output_bin_files[key] = "{}_{}_{}.bin".format(
-            args.output_prefix, key, "document"
-        )
-        output_idx_files[key] = "{}_{}_{}.idx".format(
-            args.output_prefix, key, "document"
-        )
-        builders[key] = indexed_dataset.make_builder(
-            output_bin_files[key],
-            impl=args.dataset_impl,
-            vocab_size=tokenizer.vocab_size,
-        )
+        # use multiprocessing to iterate over input documents
+        fin = yield_from_files(input_files, semaphore)
 
-    # actually do tokenization
-    proc_start = time.time()
-    total_bytes_processed = 0
-    pbar = tqdm.tqdm()
-    for i, (doc, bytes_processed) in enumerate(encoded_docs, start=1):
-        total_bytes_processed += bytes_processed
+        if args.workers > 1:
+            pool = multiprocessing.Pool(args.workers, initializer=encoder.initializer)
+            encoded_docs = pool.imap(encoder.encode, fin, chunksize=25)
+        else:
+            encoder.initializer()
+            encoded_docs = (encoder.encode(doc) for doc in fin)
 
-        # release semaphore so `yield_from_files` can add another file to the buffer
-        semaphore.release()
-
-        # add each tokenized document / sentence
-        for key, sentences in doc.items():
-            for sentence in sentences:
-                builders[key].add_item(np.array(sentence, dtype=builders[key].dtype))
-            # separate with eos token
-            builders[key].end_document()
-
-        # log progress
-        if i % args.log_interval == 0:
-            current = time.time()
-            elapsed = current - proc_start
-            mbs = total_bytes_processed / elapsed / 1024 / 1024
-            pbar.set_description(
-                f"Processed {i}{'' if args.num_docs is None else '/' + str(args.num_docs)} documents ({i / elapsed} docs/s, {mbs} MB/s)."
+        # make a dataset builder for each key in args.jsonl_keys
+        # each key will output to a different file beginning with args.output_prefix
+        output_bin_files = {}
+        output_idx_files = {}
+        builders = {}
+        parent_dir = os.path.dirname(args.output_prefix)
+        if not os.path.exists(parent_dir):
+            os.makedirs(parent_dir, exist_ok=True)
+        for key in args.jsonl_keys:
+            output_bin_files[key] = "{}{}_{}_{}.bin".format(
+                args.output_prefix, chunk_str, key, "document"
             )
-            if i != 0:
-                pbar.update(args.log_interval)
+            output_idx_files[key] = "{}{}_{}_{}.idx".format(
+                args.output_prefix, chunk_str, key, "document"
+            )
+            builders[key] = indexed_dataset.make_builder(
+                output_bin_files[key],
+                impl=args.dataset_impl,
+                vocab_size=tokenizer.vocab_size,
+            )
 
-    # save output file
-    for key in args.jsonl_keys:
-        builders[key].finalize(output_idx_files[key])
+        # actually do tokenization
+        proc_start = time.time()
+        total_bytes_processed = 0
+        pbar = tqdm.tqdm()
+        for i, (doc, bytes_processed) in enumerate(encoded_docs, start=1):
+            total_bytes_processed += bytes_processed
+
+            # release semaphore so `yield_from_files` can add another file to the buffer
+            semaphore.release()
+
+            # add each tokenized document / sentence
+            for key, sentences in doc.items():
+                for sentence in sentences:
+                    builders[key].add_item(np.array(sentence, dtype=builders[key].dtype))
+                # separate with eos token
+                builders[key].end_document()
+
+            # log progress
+            if i % args.log_interval == 0:
+                current = time.time()
+                elapsed = current - proc_start
+                mbs = total_bytes_processed / elapsed / 1024 / 1024
+                pbar.set_description(
+                    f"Processed {i}{'' if args.num_docs is None else '/' + str(args.num_docs)} documents ({i / elapsed} docs/s, {mbs} MB/s)."
+                )
+                if i != 0:
+                    pbar.update(args.log_interval)
+
+        # save output file
+        for key in args.jsonl_keys:
+            builders[key].finalize(output_idx_files[key])
 
 
 if __name__ == "__main__":
