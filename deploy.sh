@@ -14,8 +14,6 @@ cat << EOF > sbatches/sbatch_runner_$4.sh
 #SBATCH --exclusive
 #SBATCH --output=logs/neox_%j.out
 #SBATCH --error=logs/neox_%j.err
-#SBATCH --exclude=ip-26-0-140-150,ip-26-0-135-173,ip-26-0-143-225,ip-26-0-133-115
-#SBATCH --requeue # only during prempted
 KILLED=137
 TERMINATED=143
 ABORTED=134
@@ -138,8 +136,6 @@ echo "Test process returned \${RETVAL}"
 # choose your action, we retry when process aborted,killed or signalled but not when it exited with 0 or non-zero code
 # but only up to MAX_RUNS attempts
 if [ \${RETVAL} -eq  \${ABORTED} -o \${RETVAL} -eq \${TERMINATED} -o \${RETVAL} -eq \${KILLED} ]
-# abort happens with usually cuda errors and will return 134 error
-# sigterm
 then
   let run=\${REPEAT_COUNTER}+1
   if [ \${run} -lt \${MAX_RUNS} ]
