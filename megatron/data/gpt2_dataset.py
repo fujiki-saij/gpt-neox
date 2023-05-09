@@ -40,7 +40,6 @@ class GPT2Dataset(torch.utils.data.Dataset):
         use_shared_fs=True,
         neox_args=None,
     ):
-        # TODO (hailey:) add a check that noise_density and mean_noise_span_length are not passed to GPT2Dataset init?
         self.name = name
         self.seed = seed
         self.indexed_dataset = indexed_dataset
@@ -117,16 +116,14 @@ class GPT2Dataset(torch.utils.data.Dataset):
                 )
                 sample = np.concatenate(sample_list)
 
-            # TODO(Hailey): can merge the code below this line with code above this line.
-            # TODO(Hailey), cont: above already iterates through loop, so just add the permuting in there?
             sample = np.array(sample, dtype=np.int64)
             sample_len = sample.shape[0]
-            # # print(sample, sample.shape)
-            # # do FIM here, if enabled
+            # do FIM here, if enabled
             fim_rate = self.neox_args.fim_rate
 
             if fim_rate != 0:
                 assert (fim_rate <= 1 and fim_rate >= 0), "FIM rate must be a probability 0 <= rate <= 1"
+                print(f"Applying FIM to {self.name} dataset with rate {fim_rate}")
 
                 eod = self.neox_args.tokenizer.eod
                 segment_breaks = np.argwhere(sample == eod) # split sample by document
@@ -144,8 +141,6 @@ class GPT2Dataset(torch.utils.data.Dataset):
                                 self.neox_args
                             )
                             new_samples += [permuted, [eod]]
-                            # sample[curr_start_position:loc], self.np_rng = \
-                            #     permute(sample[curr_start_position:loc], self.np_rng, self.neox_args)
 
                         curr_start_position = loc + 1 # jump over the EOD token
                     # Permute the segment after the last EOD
@@ -413,13 +408,9 @@ def permute(sample, np_rng, neox_args, truncate_or_pad=True):
         suffix = contents[boundaries[1]:]
 
         if neox_args.fim_level == "char":
-            suffix = np.array([suffix_tok_id, *tokenizer.tokenize(suffix)])
-            prefix = np.array([prefix_tok_id, *tokenizer.tokenize(prefix)])
-            middle = np.array([middle_tok_id, *tokenizer.tokenize(middle)])
-        else:
-            suffix = np.concatenate([np.array([suffix_tok_id]), suffix])
-            prefix = np.concatenate([np.array([prefix_tok_id]), prefix])
-            middle = np.concatenate([np.array([middle_tok_id]), middle])
+            prefix = np.array([*tokenizer.tokenize(prefix)], dtype=np.int64)
+            middle = np.array([*tokenizer.tokenize(middle)], dtype=np.int64)
+            suffix = np.array([*tokenizer.tokenize(suffix)], dtype=np.int64)
 
         # here we truncate each given segment to fit the same length as it was before
         # A consequence is that we never reach the end of a file?

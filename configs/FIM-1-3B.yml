@@ -38,6 +38,7 @@
     "eps": 1.0e-8,
   }
   },
+  "iteration": 0,
   "zero_optimization": {
   "stage": 1,
   "allgather_partitions": True,
@@ -50,7 +51,7 @@
   },
 
   # batch / data settings
-  "train_micro_batch_size_per_gpu": 48,
+  "train_micro_batch_size_per_gpu": 16,
   "gas": 1,
   "data-impl": "mmap",
   "split": "949,50,1",
@@ -106,7 +107,8 @@
 
   "extra-sentinel-tokens": 3,
   "fim-rate": 0.5,
-  "fim-spm-rate": 0.,
+  "fim-spm-rate": 0.5,
+  "fim-level": "char",
 
   ### NEW DATA: ####
   "tokenizer_type": "HFTokenizerWithFIM",
@@ -122,6 +124,7 @@
   "wandb_project": "Infilling-LLMs",
 
   #  "hostfile": "./hostfile",
-  "launcher": "openmpi",
-  "deepspeed_mpi": true,
+  "launcher": "slurm",
+  "deepspeed_slurm": true,
 }
+# git+https://github.com/EleutherAI/DeeperSpeed.git#egg=deepspeed
