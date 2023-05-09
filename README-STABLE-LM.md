@@ -16,7 +16,7 @@ Setup the environment:
 
 For SLURM (optional):
 ```bash
-srun --exclusive --account=stablegpt --nodes=1 --partition=g40 --pty bash -i
+srun --exclusive --account=stablegpt --nodes=1 --partition=g40 --gres=gpu:1 --pty bash -i
 source /etc/profile.d/modules.sh
 module load cuda/11.7
 ```
@@ -31,7 +31,7 @@ bash Miniconda3-py38_23.3.1-0-Linux-x86_64.sh
 ```bash
 source ~/.bashrc
 conda env create -f env.yaml
-conda activate stable-lm
+conda activate stable-neox-env
 ```
 
 Next install the third party libraries:
