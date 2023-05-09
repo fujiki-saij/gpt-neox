@@ -496,6 +496,11 @@ class NeoXArgsLogging(NeoXArgsTemplate):
     wandb_name: str = None
     """Name of the wandb run."""
 
+    slurm_job_id: str = None
+    """Slurm job ID. If not set and `neox_args.launcher = "slurm"`, the job id will
+    be automatically set from the environment variable, `SLURM_JOB_ID`.
+    """
+
     git_hash: str = get_git_commit_hash()
     """current git hash of repository"""
 
