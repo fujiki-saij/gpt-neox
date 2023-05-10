@@ -68,6 +68,8 @@ class LambadaOpenAIMultilingualJapanese(LambadaOpenAI):
         # TODO: because all lambda texts are not translated yet, only take 1k translated texts
         # return self.dataset['test']
         texts = [item['text'] for item in self.dataset['test'] if item['text'] != ''][:1000]
+        # remove last 。
+        texts = [text[:-1] if text[-1] == "。" else text for text in texts]
         return texts
         # for doc in self.dataset["test"]:
         #     yield doc["text"]
