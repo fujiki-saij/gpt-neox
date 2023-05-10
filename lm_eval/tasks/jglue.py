@@ -159,7 +159,7 @@ class JSQuAD(Task):
             "answers": doc["answers"],
         }
         return {
-            "exact": (
+            "exact_match": (
                 predictions,
                 references,
             ),  # Exact match (the normalized answer exactly match the gold answer)
