@@ -93,4 +93,8 @@
 
   "log-dir": "logs",
   "use_wandb": False,
+
+  # multi-node launcher
+  "launcher": "slurm",
+  "deepspeed_slurm": true
 }

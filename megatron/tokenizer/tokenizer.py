@@ -44,7 +44,7 @@ def build_tokenizer(args):
         assert args.vocab_file is not None
         assert args.merge_file is not None
         tokenizer = _GPT2BPETokenizer(args.vocab_file, args.merge_file)
-    if args.tokenizer_type.lower() == "GPT2BPETokenizerWithFIM".lower():
+    elif args.tokenizer_type.lower() == "GPT2BPETokenizerWithFIM".lower():
         assert args.vocab_file is not None
         assert args.merge_file is not None
         tokenizer = _GPT2BPETokenizer(args.vocab_file, args.merge_file, special_tokens=[FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX, FIM_PAD])

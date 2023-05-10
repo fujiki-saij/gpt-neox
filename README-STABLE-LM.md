@@ -55,7 +55,7 @@ This test runs the model on a small dataset and checks that the output is correc
 To run a complete training run, use the provided `deploy.sh` script that uses slurm to configure everything:
 
 ```bash
-bash deploy.sh <num_nodes> <config_file_name> <run_name>
+bash deploy.sh <run_name> <num_nodes> <config_file_name>
 ```
 
 **Note:** For <config_file_name>, make sure you do not include the .yml extension.
@@ -63,13 +63,13 @@ bash deploy.sh <num_nodes> <config_file_name> <run_name>
 If you want to test a single node training with sbatch, you can use the following command:
 
 ```bash
-bash deploy.sh 1 ./config/test_config single_node_test
+bash deploy.sh single_node_test 1 ./configs/test_config
 ```
 
 To perform a multi-node training run, you can use the following command:
 
 ```bash
-bash deploy.sh 2 ./config/test_multinode_config multi_node_test
+bash deploy.sh multi_node_test 2 ./configs/test_multinode_config
 ```
 
 For multinode, ensure that your config file has the following settings:

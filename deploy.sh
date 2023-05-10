@@ -1,7 +1,7 @@
 #!/bin/bash
 
 mkdir sbatches
-cat << EOF > sbatches/sbatch_runner_$4.sh
+cat << EOF > sbatches/sbatch_runner_$1.sh
 #!/bin/bash
 #SBATCH --account="stablegpt"
 #SBATCH --job-name="$1"
@@ -145,4 +145,4 @@ then
 fi
 EOF
 
-sbatch sbatches/sbatch_runner_$4.sh
+sbatch sbatches/sbatch_runner_$1.sh
