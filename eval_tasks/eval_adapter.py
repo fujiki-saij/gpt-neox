@@ -423,9 +423,9 @@ class EvalHarnessAdapter(GPT2LM):
         # first get task dict on local main rank
         # the tasks are downloaded *as they are initialized*, and the downloads don't like multithreading.
         # so we download them once on the local main rank, wait, and then initialize them on all other ranks, which *should* load from the cache.
-        if self.is_local_main and self.dp_rank == 0:
-            os.environ['CODE_DUMP_INFILL_PATH'] = os.environ['CODE_SETTING_PATH'] #'/fsx/code-fim/FIM-clean/gpt-neox/NEW_NEW_FIMalibi_pass10.jsonl'
-            print("setting CODE_DUMP_INFILL_PATH to", os.environ['CODE_DUMP_INFILL_PATH'])
+        # if self.is_local_main and self.dp_rank == 0:
+        #     os.environ['CODE_DUMP_INFILL_PATH'] = os.environ['CODE_SETTING_PATH'] #'/fsx/code-fim/FIM-clean/gpt-neox/NEW_NEW_FIMalibi_pass10.jsonl'
+        #     print("setting CODE_DUMP_INFILL_PATH to", os.environ['CODE_DUMP_INFILL_PATH'])
 
         if self.is_local_main:
             task_dict = tasks.get_task_dict(eval_tasks)

@@ -834,6 +834,11 @@ class NeoXArgsTraining(NeoXArgsTemplate):
     Timeout for initializing ranks. If a rank does not initialize within this time, the program will exit.
     """
 
+    model_and_optimizer_timeout: int = 600
+    """
+    Timeout for initializing model and optimizer. If a rank does not initialize within this time, the program will exit.
+    """
+
     heartbeat_timeout: int = 300
     """
     Timeout for heartbeats between ranks. If a rank does not send a heartbeat within this time, the program will exit.

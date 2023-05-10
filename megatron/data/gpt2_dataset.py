@@ -24,7 +24,7 @@ import numpy as np
 import torch
 
 from megatron import mpu, print_rank_0
-from megatron.tokenizer.tokenizer import FIM_MIDDLE, FIM_PAD, FIM_PREFIX, FIM_SUFFIX
+from megatron.tokenizer.tokenizer import FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX
 
 class GPT2Dataset(torch.utils.data.Dataset):
     def __init__(
@@ -47,15 +47,6 @@ class GPT2Dataset(torch.utils.data.Dataset):
         self.tokenizer = neox_args.tokenizer
 
         self.np_rng = np.random.RandomState(seed=seed) # rng state for FIM
-
-        fim_rate = self.neox_args.fim_rate
-        if fim_rate != 0:
-            # Add special tokens to the tokenizer
-            try:
-                self.suffix_tok_id, self.prefix_tok_id, self.middle_tok_id, self.pad_tok_id = (self.tokenizer.vocab[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE, FIM_PAD])
-            except KeyError:
-                self.suffix_tok_id, self.prefix_tok_id, self.middle_tok_id, self.pad_tok_id = (self.tokenizer.vocab[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE, FIM_PAD])
-
 
         # Checks
         assert np.min(documents) >= 0, f"dataset {data_prefix} {name} has negative documents"
@@ -158,7 +149,7 @@ class GPT2Dataset(torch.utils.data.Dataset):
             if diff > 0: # too long
                 sample = sample[:sample_len]
             elif diff < 0: # too short
-                sample = np.concatenate([sample, np.full((-1 * diff), self.pad_tok_id)])
+                sample = np.concatenate([sample, np.full((-1 * diff), self.tokenizer.pad_id)])
 
             assert sample.shape[0] == sample_len
             # end FIM-specific code

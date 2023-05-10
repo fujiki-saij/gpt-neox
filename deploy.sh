@@ -14,12 +14,15 @@ cat << EOF > sbatches/sbatch_runner_$1.sh
 #SBATCH --exclusive
 #SBATCH --output=logs/neox_%j.out
 #SBATCH --error=logs/neox_%j.err
+#SBATCH --exclude=ip-26-0-140-150,ip-26-0-134-43,ip-26-0-143-225,ip-26-0-135-173,ip-26-0-129-240,ip-26-0-140-63,ip-26-0-133-115,ip-26-0-131-[143,183,188,201],ip-26-0-132-214,ip-26-0-133-[81,126],ip-26-0-136-[27,42],ip-26-0-138-51,ip-26-0-140-[123-124],ip-26-0-143-[111,121,235,250],ip-26-0-129-197,ip-26-0-130-[37,127,132,150,164,193],ip-26-0-134-201,ip-26-0-137-[115,168,184,196],ip-26-0-138-208,ip-26-0-141-70,ip-26-0-142-[3,13]
+
+
 KILLED=137
 TERMINATED=143
 ABORTED=134
 
 REPEAT_COUNTER=\${1:-0}
-MAX_RUNS=2
+MAX_RUNS=1
 
 source /etc/profile.d/modules.sh
 module load openmpi cuda/11.7

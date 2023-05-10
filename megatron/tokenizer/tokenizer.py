@@ -44,19 +44,12 @@ def build_tokenizer(args):
         assert args.vocab_file is not None
         assert args.merge_file is not None
         tokenizer = _GPT2BPETokenizer(args.vocab_file, args.merge_file)
-    elif args.tokenizer_type.lower() == "GPT2BPETokenizerWithFIM".lower():
-        assert args.vocab_file is not None
-        assert args.merge_file is not None
-        tokenizer = _GPT2BPETokenizer(args.vocab_file, args.merge_file, special_tokens=[FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX, FIM_PAD])
     elif args.tokenizer_type.lower() == "SPMTokenizer".lower():
         assert args.vocab_file is not None
         tokenizer = SentencePieceTokenizer(args.vocab_file)
     elif args.tokenizer_type.lower() == "HFTokenizer".lower():
         assert args.vocab_file is not None
         tokenizer = HFTokenizer(args.vocab_file)
-    elif args.tokenizer_type.lower() == "HFTokenizerWithFIM".lower():
-        assert args.vocab_file is not None
-        tokenizer = HFTokenizer(args.vocab_file, special_tokens=[FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX, FIM_PAD])
     elif args.tokenizer_type.lower() == "HFGPT2Tokenizer".lower():
         if args.vocab_file is None:
             print(
@@ -262,7 +255,7 @@ class HFTokenizer(AbstractTokenizer):
         super().__init__(name)
 
         self.tokenizer = Tokenizer.from_file(vocab_file)
-        self.tokenizer.add_special_tokens(special_tokens)
+        # self.tokenizer.add_special_tokens(special_tokens) # TODO: remove later
         self.eod_id = self.tokenizer.token_to_id("<|endoftext|>")
         self.pad_id = self.tokenizer.token_to_id("<|padding|>")
 
