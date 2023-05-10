@@ -177,8 +177,12 @@ class BaseLM(LM):
                 context_enc = [self.eot_token_id]
             else:
                 context_enc = self.tok_encode(context)
-
-            continuation_enc = self.tok_encode(continuation)
+            if continuation == "__lasttoken__":
+                # take last token from context
+                continuation_enc = [context_enc[-1]]
+                context_enc = context_enc[:-1]
+            else:
+                continuation_enc = self.tok_encode(continuation)
 
             new_reqs.append(((context, continuation), context_enc, continuation_enc))
 
