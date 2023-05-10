@@ -10,7 +10,6 @@ Homepage: https://github.com/yahoojapan/JGLUE
 import datasets
 from math import exp
 from lm_eval.base import rf, Task, MultipleChoiceTask
-from lm_eval.tasks.squad import _squad_agg
 from functools import partial
 
 
@@ -30,6 +29,18 @@ _CITATION = """
     abstract = "To develop high-performance natural language understanding (NLU) models, it is necessary to have a benchmark to evaluate and analyze NLU ability from various perspectives. While the English NLU benchmark, GLUE, has been the forerunner, benchmarks are now being released for languages other than English, such as CLUE for Chinese and FLUE for French; but there is no such benchmark for Japanese. We build a Japanese NLU benchmark, JGLUE, from scratch without translation to measure the general NLU ability in Japanese. We hope that JGLUE will facilitate NLU research in Japanese.",
 }
 """
+
+
+
+def _squad_metric(predictions, references):
+    # https://github.com/huggingface/datasets/tree/main/metrics/squad
+    squad_metric = datasets.load_metric("squad")
+    return squad_metric.compute(predictions=predictions, references=references)
+
+
+def _squad_agg(key, item):
+    predictions, references = zip(*item)
+    return _squad_metric(predictions=predictions, references=references)[key]
 
 
 
@@ -110,10 +121,6 @@ class JSQuAD(Task):
     def doc_to_target(self, doc):
         answer_list = doc["answers"]["text"]
         answer = answer_list[0]
-        # if len(answer_list) > 0:
-        #     answer = answer_list[0]
-        # else:
-        #     answer = "unanswerable"
         return " " + answer
 
     def construct_requests(self, doc, ctx):
@@ -129,8 +136,7 @@ class JSQuAD(Task):
             part of the document for `doc`.
         """
         continuation = rf.greedy_until(ctx, [self.SEP])
-        is_unanswerable = rf.loglikelihood(ctx, " " + self.UNANSWERABLE)
-        return continuation, is_unanswerable
+        return continuation
 
     def process_results(self, doc, results):
         """Take a single document and the LM results and evaluates, returning a
@@ -142,12 +148,10 @@ class JSQuAD(Task):
         :param results:
             The results of the requests created in construct_requests.
         """
-        continuation, (logprob_unanswerable, _) = results
-        no_answer_probability = exp(logprob_unanswerable)
+        continuation = results
         predictions = {
             "id": doc["id"],
             "prediction_text": continuation,
-            "no_answer_probability": no_answer_probability,
         }
 
         references = {
@@ -163,27 +167,6 @@ class JSQuAD(Task):
                 predictions,
                 references,
             ),  # The F-score of predicted tokens versus the gold answer
-            # "HasAns_exact": (
-            #     predictions,
-            #     references,
-            # ),  # Exact match (the normalized answer exactly match the gold answer)
-            # "HasAns_f1": (
-            #     predictions,
-            #     references,
-            # ),  # The F-score of predicted tokens versus the gold answer
-            # "NoAns_exact": (
-            #     predictions,
-            #     references,
-            # ),  # Exact match (the normalized answer exactly match the gold answer)
-            # "NoAns_f1": (
-            #     predictions,
-            #     references,
-            # ),  # The F-score of predicted tokens versus the gold answer
-            # "best_exact": (
-            #     predictions,
-            #     references,
-            # ),  # Best exact match (with varying threshold)
-            # "best_f1": (predictions, references),  # Best F1 (with varying threshold)
         }
 
 
@@ -194,6 +177,7 @@ class JSQuAD(Task):
             functions that aggregate a list of metric scores
         """
         # TODO: find a good way to cache the result from _squad_agg to minimalize compute cost 
+        # https://github.com/huggingface/datasets/tree/main/metrics/squad
         return {
             "exact": partial(
                 _squad_agg, "exact"
@@ -201,24 +185,6 @@ class JSQuAD(Task):
             "f1": partial(
                 _squad_agg, "f1"
             ),  # The F-score of predicted tokens versus the gold answer
-            # "HasAns_exact": partial(
-            #     _squad_agg, "HasAns_exact"
-            # ),  # Exact match (the normalized answer exactly match the gold answer)
-            # "HasAns_f1": partial(
-            #     _squad_agg, "HasAns_f1"
-            # ),  # The F-score of predicted tokens versus the gold answer
-            # "NoAns_exact": partial(
-            #     _squad_agg, "NoAns_exact"
-            # ),  # Exact match (the normalized answer exactly match the gold answer)
-            # "NoAns_f1": partial(
-            #     _squad_agg, "NoAns_f1"
-            # ),  # The F-score of predicted tokens versus the gold answer
-            # "best_exact": partial(
-            #     _squad_agg, "best_exact"
-            # ),  # Best exact match (with varying threshold)
-            # "best_f1": partial(
-            #     _squad_agg, "best_f1"
-            # ),  # Best F1 (with varying threshold)
         }
     
     def higher_is_better(self):
@@ -230,12 +196,6 @@ class JSQuAD(Task):
         return {
             "exact": True,  # Exact match (the normalized answer exactly match the gold answer)
             "f1": True,  # The F-score of predicted tokens versus the gold answer
-            # "HasAns_exact": True,  # Exact match (the normalized answer exactly match the gold answer)
-            # "HasAns_f1": True,  # The F-score of predicted tokens versus the gold answer
-            # "NoAns_exact": True,  # Exact match (the normalized answer exactly match the gold answer)
-            # "NoAns_f1": True,  # The F-score of predicted tokens versus the gold answer
-            # "best_exact": True,  # Best exact match (with varying threshold)
-            # "best_f1": True,  # Best F1 (with varying threshold)
         }
 
 
