@@ -179,8 +179,8 @@ class JSQuAD(Task):
         # TODO: find a good way to cache the result from _squad_agg to minimalize compute cost 
         # https://github.com/huggingface/datasets/tree/main/metrics/squad
         return {
-            "exact": partial(
-                _squad_agg, "exact"
+            "exact_match": partial(
+                _squad_agg, "exact_match"
             ),  # Exact match (the normalized answer exactly match the gold answer)
             "f1": partial(
                 _squad_agg, "f1"
@@ -194,7 +194,7 @@ class JSQuAD(Task):
             whether a higher value of the submetric is better
         """
         return {
-            "exact": True,  # Exact match (the normalized answer exactly match the gold answer)
+            "exact_match": True,  # Exact match (the normalized answer exactly match the gold answer)
             "f1": True,  # The F-score of predicted tokens versus the gold answer
         }
 
