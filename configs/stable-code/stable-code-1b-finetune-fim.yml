@@ -29,28 +29,28 @@
   "attention-config": [[["flash"], 24]],
 
   # curriculum learning
-  "curriculum_learning": {
-    "enabled": true,
-    "curriculum_type": "seqlen",
-    "min_difficulty": 64,   # Start seq len
-    "max_difficulty": 4096,  # End seq len
-    "schedule_type": "fixed_linear",
-    "schedule_config": {
-      "total_curriculum_step": 20000,
-      "difficulty_step": 8  # Ensure stepped seq lens are divisible by 8
-    }
-  },
+  # "curriculum_learning": {
+  #   "enabled": true,
+  #   "curriculum_type": "seqlen",
+  #   "min_difficulty": 64,   # Start seq len
+  #   "max_difficulty": 4096,  # End seq len
+  #   "schedule_type": "fixed_linear",
+  #   "schedule_config": {
+  #     "total_curriculum_step": 20000,
+  #     "difficulty_step": 8  # Ensure stepped seq lens are divisible by 8
+  #   }
+  # },
 
   # optimizer settings
   "optimizer": {
     "type": "Adam",
     "params": {
-      "lr": 3.4e-4,
+      "lr": 1.4e-4,
       "betas": [0.9, 0.95],
       "eps": 1.0e-8
     }
   },
-  "min_lr": 3.4e-5,
+  "min_lr": 1.4e-5,
 
   # for all zero_optimization options, see https://www.deepspeed.ai/docs/config-json/#zero-optimizations-for-fp16-training
   "zero_optimization": {
@@ -92,6 +92,10 @@
     "hysteresis": 2,
     "min_loss_scale": 1
   },
+
+  # precision settings
+  # "bf16": { "enabled": true },
+  # "precision": "bfloat16",
 
   # misc. training settings
   # 66k iters ~= 550B tokens at bs=8.3M

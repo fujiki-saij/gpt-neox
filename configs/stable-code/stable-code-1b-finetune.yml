@@ -102,9 +102,9 @@
 
   # checkpoint settings
   "save": "/fsx/ckpts/1b_tok=neox_data=stable-code-finetune",
-  "load": "/fsx/ckpts/1b_tok=neox_data=redpajama",
-  "no_load_optim": true,
-  "iteration": 0,
+  "load": "/fsx/ckpts/1b_tok=neox_data=stable-code-finetune",
+  # "no_load_optim": true,
+  # "iteration": 0,
   "finetune": true,
 
   # data settings
