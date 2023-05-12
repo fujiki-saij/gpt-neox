@@ -65,7 +65,7 @@
   },
 
   # batch / data settings
-  "train_micro_batch_size_per_gpu": 8,
+  "train_micro_batch_size_per_gpu": 16,
   "gradient_accumulation_steps": 1,
   "eval_batch_size": 4,
   "data-impl": "mmap",
@@ -77,7 +77,7 @@
   "synchronize-each-layer": true,
 
   # regularization
-  "gradient_clipping": 1.0,
+  "gradient_clipping": 0.5,
   "weight-decay": 0.1,
   "hidden-dropout": 0,
   "attention-dropout": 0,

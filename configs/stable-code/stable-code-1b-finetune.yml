@@ -85,9 +85,9 @@
   # 120k iters = 1T tokens at bs=8.3M
   # 240k iters = 1T tokens at bs=4.1M
   # 180k iters = 1.5T tokens at bs=8.3M
-  # 180k iters ~= 700T tokens at bs=4.1M
+  # 180k iters ~= 700B tokens at bs=4.1M
   # 360k iters = 3T tokens at bs=4.1M
-  "train-iters": 180000, # 180k iters ~= 700T tokens at bs=4.1M
+  "train-iters": 180000, # 180k iters ~= 700B tokens at bs=4.1M
   "lr-decay-iters": 180000,
   "distributed-backend": "nccl",
   "lr-decay-style": "cosine",

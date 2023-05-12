@@ -3,6 +3,8 @@ hostfiles/
 logs/
 nccl-logs/
 test-checkpoints/
+data/
+sbatches/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
