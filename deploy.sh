@@ -12,8 +12,8 @@ cat << EOF > sbatches/sbatch_runner_$4.sh
 #SBATCH --mem-per-cpu=11G
 #SBATCH --gres=gpu:8
 #SBATCH --exclusive
-#SBATCH --output=logs/neox_%j.out
-#SBATCH --error=logs/neox_%j.err
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
 KILLED=137
 TERMINATED=143
 ABORTED=134
