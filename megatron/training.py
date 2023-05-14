@@ -23,6 +23,7 @@ from datetime import datetime
 from functools import partial
 
 import math
+import os
 import sys
 
 import torch
@@ -186,14 +187,20 @@ def pretrain(neox_args):
     )
     # initialize CheckpointCargo, the rank 0 of each host so that we don't have to worry about multiple ranks uploading the same checkpoint
     
-    # if neox_args.local_rank == 0:
-    #     CG = CheckpointCargo(
-    #         src_dir=neox_args.save,
-    #         dst_url=neox_args.s3_path,
-    #         region=neox_args.s3_region,
-    #         file_regex=r'.*',
-    #         recursive=True
-    #     )
+    if neox_args.local_rank == 0:
+        if neox_args.save is not None and neox_args.s3_path is not None and neox_args.s3_region is not None:
+            os.makedirs(neox_args.save, exist_ok=True)
+            s3_path = neox_args.s3_path + "/" + neox_args.save.split("/")[-1]
+            CG = CheckpointCargo(
+                src_dir=neox_args.save,
+                dst_url=s3_path,
+                region=neox_args.s3_region,
+                file_regex=r'.*',
+                recursive=True
+            )
+            print_rank_0(f"Uploading checkpoints to {s3_path}")
+        else:
+            CG = None
     
 
 
@@ -228,8 +235,8 @@ def pretrain(neox_args):
     print_rank_0("done with setups ...")
     timers.log(["model and optimizer", "train/valid/test data iterators"])
     print_rank_0("training ...")
-    # if neox_args.local_rank == 0:
-    #     CG.start()
+    if neox_args.local_rank == 0 and CG is not None:
+        CG.start()
     iteration = neox_args.iteration
     if neox_args.do_train and neox_args.train_iters > 0:
         # edge case: save step 0 checkpoint if requested and we're starting from step 0
@@ -280,9 +287,11 @@ def pretrain(neox_args):
             lr_scheduler=lr_scheduler,
         )
         hb.stop()
-    # if neox_args.local_rank == 0:
-    #     CG.stop()
-    #     # sleep for 5 seconds to allow for the last checkpoint to be uploaded
+    if neox_args.local_rank == 0 and CG is not None:
+        CG.stop()
+        # sleep for 5 seconds to allow for the last checkpoint to be uploaded
+        import time
+        time.sleep(5)
 
     if neox_args.do_test:
         # Run on test data.
