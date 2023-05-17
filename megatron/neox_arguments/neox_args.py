@@ -685,9 +685,10 @@ class NeoXArgsTokenizer(NeoXArgsTemplate):
         "SPMTokenizer",
         "CharLevelTokenizer",
         "TiktokenTokenizer",
+        "MeCabTokenizer",
     ] = "GPT2BPETokenizer"
     """
-    Type of tokenizer to use - should be one of ["GPT2BPETokenizer", "HFTokenizer", "HFGPT2Tokenizer", "SPMTokenizer", "CharLevelTokenizer", "TiktokenTokenizer"]
+    Type of tokenizer to use - should be one of ["GPT2BPETokenizer", "HFTokenizer", "HFGPT2Tokenizer", "SPMTokenizer", "CharLevelTokenizer", "TiktokenTokenizer", "MeCabTokenizer"]
     """
 
     padded_vocab_size: int = None

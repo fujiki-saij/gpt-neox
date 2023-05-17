@@ -19,11 +19,17 @@
 
 from abc import ABC
 from abc import abstractmethod
+import os
 
 from tokenizers import Tokenizer
 from transformers import GPT2Tokenizer, GPT2TokenizerFast
 import numpy as np
 import sentencepiece as spm
+try:
+    import fugashi
+except ImportError:
+    # we'll raise an error when it's used
+    fugashi = None
 from typing import List, Union
 from .gpt2_tokenization import GPT2Tokenizer
 
@@ -220,6 +226,62 @@ class SentencePieceTokenizer(AbstractTokenizer):
     def eod(self):
         return self.eod_id
 
+class MeCabTokenizer(AbstractTokenizer):
+    """MeCab pretokenization with SentencePiece
+
+    Vocabulary related functions just pass through to SentencePiece."""
+
+    def __init__(self, vocab_file):
+        name = "MeCab"
+        super().__init__(name)
+
+        if fugashi is None:
+            raise ImportError("""The MeCabTokenizer requires fugashi to be installed.""")
+
+        # TODO allow passing MeCab args
+        import unidic_lite
+        dicdir = unidic_lite.DICDIR
+        mecabrc = os.path.join(dicdir, 'mecabrc')
+        mecab_args = '-r "{}" -d "{}" '.format(mecabrc, dicdir)
+        self.mecab = fugashi.Tagger(mecab_args)
+
+        self.sp = spm.SentencePieceProcessor(model_file=vocab_file)
+        self.eod_id = self.sp.piece_to_id("<|endoftext|>")
+
+    @property
+    def vocab_size(self):
+        return self.sp.get_piece_size()
+
+    @property
+    def vocab(self):
+        return {
+            self.sp.id_to_piece(idx): idx
+            for idx in range(self.sp.get_piece_size())
+        }
+
+    @property
+    def inv_vocab(self):
+        return {
+            idx: self.sp.id_to_piece(idx)
+            for idx in range(self.sp.get_piece_size())
+        }
+
+    def tokenize(self, text):
+        mecab_toks = [node.surface for node in self.mecab(text)]
+        sp_toks = [self.sp.encode(tok) for tok in mecab_toks]
+        # flatten it
+        out = []
+        for toks in sp_toks:
+            for tok in toks:
+                out.append(tok)
+        return out
+
+    def detokenize(self, token_ids):
+        return self.sp.decode(token_ids)
+
+    @property
+    def eod(self):
+        return self.eod_id
 
 class HFTokenizer(AbstractTokenizer):
     """Designed to Integrate HF's Tokenizer library."""
