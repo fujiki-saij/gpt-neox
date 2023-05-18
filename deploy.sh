@@ -1,27 +1,47 @@
 #!/bin/bash
 
-mkdir sbatches
-cat << EOF > sbatches/sbatch_runner_$1.sh
+usage()
+{
+  echo "Usage: bash deploy.sh [ -c | --config ] [ -j | --jobname ] [ -n | --nodes ]"
+  exit 2
+}
+
+PARSED_ARGUMENTS=$(getopt -o c:j:n: --long config:,jobname:,nodes: -- "$@")
+echo "PARSED_ARGUMENTS is $PARSED_ARGUMENTS"
+eval set -- "$PARSED_ARGUMENTS"
+
+while true ; do
+    case "$1" in
+        -c|--config) config=$2 ; shift 2 ;;
+        -j|--jobname) jobname=$2 ; shift 2 ;;
+        -n|--nodes) nodes=$2 ; shift 2 ;;
+        --) shift; break ;;
+        *) echo "Unexpected option: $1 - this should not happen."
+        usage ;;
+    esac
+done
+
+mkdir -p sbatches
+cat << EOF > sbatches/sbatch_runner_$jobname.sh
 #!/bin/bash
 #SBATCH --account="stablegpt"
-#SBATCH --job-name="$1"
+#SBATCH --job-name=${jobname}
 #SBATCH --partition=g40
-#SBATCH --nodes=$2  # Set > 1 for multi-node
+#SBATCH --nodes=$nodes # Set > 1 for multi-node
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=12
 #SBATCH --mem-per-cpu=11G
 #SBATCH --gres=gpu:8
 #SBATCH --exclusive
-#SBATCH --output=logs/neox_%j.out
-#SBATCH --error=logs/neox_%j.err
-#SBATCH --exclude=ip-26-0-140-150,ip-26-0-134-43,ip-26-0-143-225,ip-26-0-135-173,ip-26-0-129-240,ip-26-0-140-63,ip-26-0-133-115,ip-26-0-131-[143,183,188,201],ip-26-0-132-214,ip-26-0-133-[81,126],ip-26-0-136-[27,42],ip-26-0-138-51,ip-26-0-140-[123-124],ip-26-0-143-[111,121,235,250],ip-26-0-129-197,ip-26-0-130-[37,127,132,150,164,193],ip-26-0-134-201,ip-26-0-137-[115,168,184,196],ip-26-0-138-208,ip-26-0-141-70,ip-26-0-142-[3,13]
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
 
 KILLED=137
 TERMINATED=143
 ABORTED=134
 
 REPEAT_COUNTER=\${1:-0}
-MAX_RUNS=1
+MAX_RUNS=2
 
 source /etc/profile.d/modules.sh
 module load openmpi cuda/11.7
@@ -39,6 +59,7 @@ export PATH=\$CONDA_HOME/bin:\$PATH
 export LD_LIBRARY_PATH=\$CONDA_HOME/lib:\$LD_LIBRARY_PATH
 export CPATH=\$CONDA_HOME/include:\$CPATH
 ###########################################################
+
 
 ###########################################################
 # CUDA/Torch Setup
@@ -103,14 +124,6 @@ export DLTS_HOSTFILE=\$CWD/hostfiles/hosts_\$SLURM_JOBID
 ###########################################################
 
 
-sig_handler()
-{
-    echo "BATCH interrupted"
-    wait # wait for all children, this is important!
-}
-trap 'sig_handler' SIGINT SIGTERM SIGCONT
-
-
 ###########################################################
 # Environment Setup
 # TODO: Replace with your own environment setup
@@ -132,9 +145,11 @@ TRAIN_PATH=\$CWD
 cd \$TRAIN_PATH
 wandb login --relogin --host https://stability.wandb.io local-edea3863613ef71e1ef7532673fdf4b46bc5ffd7
 git config --global --add safe.directory \$TRAIN_PATH
-python ./deepy.py train.py $3
+
+echo "$0 = \$0"
+bash -c 'python ./deepy.py train.py ${config}; exit \$?'
 RETVAL=\$?
-echo "Test process returned \${RETVAL}"
+echo "RETVAL = \${RETVAL}"
 # choose your action, we retry when process aborted,killed or signalled but not when it exited with 0 or non-zero code
 # but only up to MAX_RUNS attempts
 if [ \${RETVAL} -eq  \${ABORTED} -o \${RETVAL} -eq \${TERMINATED} -o \${RETVAL} -eq \${KILLED} ]
@@ -142,9 +157,10 @@ then
   let run=\${REPEAT_COUNTER}+1
   if [ \${run} -lt \${MAX_RUNS} ]
   then
+    echo "Resubmitting job. Retry number = \${run}"
     sbatch \$0 \${run}
   fi
 fi
 EOF
 
-sbatch sbatches/sbatch_runner_$1.sh
+sbatch sbatches/sbatch_runner_${jobname}.sh

@@ -798,7 +798,7 @@ class NeoXArgsTraining(NeoXArgsTemplate):
     Timeout for initializing ranks. If a rank does not initialize within this time, the program will exit.
     """
 
-    heartbeat_timeout: int = 300
+    heartbeat_timeout: int = 60
     """
     Timeout for heartbeats between ranks. If a rank does not send a heartbeat within this time, the program will exit.
     """

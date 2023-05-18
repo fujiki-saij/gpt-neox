@@ -822,7 +822,7 @@ def train(
     # to monitor if we've skipped many iterations in a row and trigger an early exit
     overflow_monitor = OverflowMonitor(optimizer)
     while iteration < neox_args.train_iters:
-        hb.pulse()
+        hb.start()
         loss_dict, skipped_iter = train_step(
             neox_args=neox_args,
             timers=timers,
@@ -844,6 +844,7 @@ def train(
             lr = optimizer.param_groups[0].get("lr", 0)
         else:
             lr = 0
+        hb.stop()
 
         # Logging.
         report_memory_flag = training_log(
