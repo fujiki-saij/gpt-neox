@@ -37,42 +37,47 @@ class SFTDataset(Dataset):
 
 
 class TextDataset(Dataset):
-        def __init__(self, data, tokenizer, max_text_len=4096, cache_name="train"):
-            self.input_ids = []
-            self.attn_masks = []
-            self.labels = []
-            self.prompts = []
+    def __init__(self, data, tokenizer, max_text_len=4096, cache_name="train"):
+        self.input_ids = []
+        self.attn_masks = []
+        self.labels = []
+        self.prompts = []
+        if hasattr(tokenizer, "eos_token_id"):
+            EOS_ID = tokenizer.eos_token_id
+            EOS_TOKEN = tokenizer.eos_token
+        else:
             EOS_ID = tokenizer("<|endoftext|>")["input_ids"][0]
+            EOS_TOKEN = '<|endoftext|>'
 
-            max_length = max_text_len
-            print("Max length: {}".format(max_length))
+        max_length = max_text_len
+        print("Max length: {}".format(max_length))
 
-            # Data expected in prompt response pairs
-            if os.path.exists(cache_name + "inputids.pt"):
-                print("using cached dataset")
-                self.input_ids = torch.load(cache_name+"inputids.pt")
-                self.attn_masks = torch.load(cache_name+"attnmask.pt")
-                self.labels = torch.load(cache_name+"inputids.pt")
-                return
-            for ele in tqdm(data):
-                prompt = ele["text"]
-                prompt_encoding_len = len(tokenizer(prompt)["input_ids"])
-                encodings_dict = tokenizer(prompt + '<|endoftext|>', truncation=True,
-                                        max_length=max_length, padding="max_length")
-                input_id = torch.tensor(encodings_dict['input_ids'])
-                attn_mask = torch.tensor(encodings_dict['attention_mask'])
-                self.input_ids.append(input_id)
-                self.attn_masks.append(attn_mask)
-                self.labels.append(input_id)
-            torch.save(self.input_ids, cache_name+"inputids.pt")
-            torch.save(self.attn_masks, cache_name+"attnmask.pt")
+        # TODO: clean up comment outed lines
+        # # Data expected in prompt response pairs
+        #     if os.path.exists(cache_name + "inputids.pt"):
+        #         print("using cached dataset")
+        #         self.input_ids = torch.load(cache_name+"inputids.pt")
+        #         self.attn_masks = torch.load(cache_name+"attnmask.pt")
+        #         self.labels = torch.load(cache_name+"inputids.pt")
+        #         return
+        for ele in tqdm(data):
+            prompt = ele["text"]
+            prompt_encoding_len = len(tokenizer(prompt)["input_ids"])
+            encodings_dict = tokenizer(
+                prompt, truncation=True, max_length=max_length, padding="max_length")
+            input_id = torch.tensor(encodings_dict['input_ids'])
+            attn_mask = torch.tensor(encodings_dict['attention_mask'])
+            self.input_ids.append(input_id)
+            self.attn_masks.append(attn_mask)
+            self.labels.append(input_id)
+            # torch.save(self.input_ids, cache_name+"inputids.pt")
+            # torch.save(self.attn_masks, cache_name+"attnmask.pt")
 
+    def __len__(self):
+        return len(self.input_ids)
 
-        def __len__(self):
-            return len(self.input_ids)
-
-        def __getitem__(self, idx):
-            return self.input_ids[idx], self.attn_masks[idx], self.labels[idx]
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.attn_masks[idx], self.labels[idx]
 
 
 
