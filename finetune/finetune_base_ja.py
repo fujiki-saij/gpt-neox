@@ -11,6 +11,7 @@ import transformers as T
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 
 from rm_datasets import SFTDataset, MaskedSFTDataset, TextDataset
+from templates import INPUT_PROMPT, NO_INPUT_PROMPT
 
 
 if __name__ == "__main__":
@@ -68,26 +69,6 @@ if __name__ == "__main__":
         model = model.cuda()
         print("Model moved to cuda")
     training_args = TrainingArguments(**config["train_args"])
-
-    # prompt templates
-    INPUT_PROMPT = """以下は、タスクを説明する指示と、文脈のある入力の組み合わせです。要求を適切に満たす応答を書きなさい。
-
-### 指示: 
-{instruction}
-
-### 入力: 
-{input}
-
-### 応答: 
-{response}"""
-
-    NO_INPUT_PROMPT = """以下は、タスクを説明する指示と、文脈のある入力の組み合わせです。要求を適切に満たす応答を書きなさい。
-
-### 指示: 
-{instruction}
-
-### 応答: 
-{response}"""
 
     def preprocess_function(example):
         # remove parenthesis that might be introduced by some NMTs
