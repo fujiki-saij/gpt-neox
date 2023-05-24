@@ -12,6 +12,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingA
 
 from rm_datasets import SFTDataset, MaskedSFTDataset, TextDataset
 from templates import INPUT_PROMPT, NO_INPUT_PROMPT
+from utils import load_yaml
 
 
 def main(config):
@@ -95,39 +96,9 @@ def main(config):
 
 
 if __name__ == "__main__":
-    # expid = "exp001"  # TODO: change here
-    expname = f"stablelm-jp-1b-ja50_rp50-460b-tuned_japanese_alpaca_data"
-    # TODO: refactor as yaml config file
-    # hyper parameters
-    config = {
-        "cache_dir": "/fsx/home-fujiki/.cache",  # TODO: change here
-        "tokenizer_path": "/fsx/jp-llm/tokenizers/nai-hf-tokenizer",
-        "model_path": "/fsx/jp-llm/hf_model/1b-ja50-rp50-460b",  # TODO: change here
-        "save_dir": f"/fsx/jp-llm/instruction_tuning/outputs/{expname}",  # TODO: change here
-        "train_args": {
-            "output_dir": f"/fsx/jp-llm/instruction_tuning/outputs/{expname}",  # TODO: change here
-            "num_train_epochs": 2,
-            "per_device_train_batch_size": 8,
-            "per_device_eval_batch_size": 8,
-            "fp16": True,
-            "learning_rate": 1.0e-7,
-            "lr_scheduler_type": "constant",
-            # "adam_beta2": 0.99,
-            # "weight_decay": 0.01,
-            # "gradient_accumulation_steps": 16,
-            "gradient_checkpointing": True,
-            # "warmup_steps": 100,
-            "evaluation_strategy": "steps",
-            "eval_steps": 100,
-            "logging_dir": f"/fsx/jp-llm/instruction_tuning/outputs/{expname}",  # TODO: change here
-            "logging_steps": 100,
-            "save_strategy": "steps",
-            "save_steps": 100,
-            "save_total_limit": 2,
-        },
-        "data_path": "fujiki/japanese_alpaca_data",
-        "train_size": 0.98,
-        "trainer": "text",
-        "max_text_len": 1024,
-    }
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config_path", type=str, default="configs/sample.yaml")
+    args, _ = parser.parse_known_args()
+    config = load_yaml(args.config_path)
     main(config)
