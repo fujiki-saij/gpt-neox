@@ -19,14 +19,10 @@ def main(config):
     # data
     raw_data = load_dataset(config["data_path"], cache_dir=config["cache_dir"])['train']
     # tokenizer
-    if "rinna" in config["tokenizer_path"]:
-        tokenizer = AutoTokenizer.from_pretrained(
-            config["tokenizer_path"], use_fast=False, cache_dir=config.get("cache_dir", None),
-        )
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(
-            config["tokenizer_path"], cache_dir=config.get("cache_dir", None),
-        )
+    tokenizer = AutoTokenizer.from_pretrained(
+        config["tokenizer"]["tokenizer_name_or_path"], use_fast=config["tokenizer"].get("use_fast", False),
+        cache_dir=config.get("cache_dir", None),
+    )
     tokenizer.pad_token = tokenizer.eos_token
     # model
     model = AutoModelForCausalLM.from_pretrained(config["model_path"])
