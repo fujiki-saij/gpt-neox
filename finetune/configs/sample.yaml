@@ -21,10 +21,9 @@ train_args:
   eval_steps: 100
   logging_dir: "/path/to/output/directory/rinna-1b-instruct"  # TODO: change here
   logging_steps: 100
-  save_strategy: "steps"
-  save_steps: 100
-  save_total_limit": 2
+  save_strategy: "epoch"
+  save_total_limit: 1
 data_path: "fujiki/japanese_alpaca_data"
 train_size: 0.98
 trainer: "text"
-max_text_len": 1024
+max_text_len: 1024
