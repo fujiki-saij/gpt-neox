@@ -34,28 +34,13 @@ def main(config):
         cache_dir=config.get("cache_dir", None),
     )
     tokenizer.pad_token = tokenizer.eos_token
+
     # model
     model = AutoModelForCausalLM.from_pretrained(config["model_path"])
     if torch.cuda.is_available():
         model = model.cuda()
         print("Model moved to cuda")
     training_args = TrainingArguments(**config["train_args"])
-
-    def preprocess_function(example):
-        # remove parenthesis that might be introduced by some NMTs
-        new_example = {}
-        for k, v in example.items():
-            if example[k].startswith("「") and example[k].endswith("」"):
-                new_example[k] = example[k].strip("「").strip("」")
-            else:
-                new_example[k] = example[k]
-        return new_example
-
-    processed_data = raw_data.map(
-        preprocess_function,
-        batched=False,
-    )
-    assert len(raw_data) == len(processed_data)
 
     def make_text_field(example):
         # put alapaca-like formatted data point into the prompt template
@@ -68,7 +53,7 @@ def main(config):
                 instruction=example['instruction'], input=example['input'], response=example[output_field_name])
         return example
 
-    data = processed_data.map(
+    data = raw_data.map(
         make_text_field,
         batched=False,
         remove_columns=["instruction", "input", "output", "index", "category", "id"]
