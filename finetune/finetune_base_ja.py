@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset, random_split
 from tqdm.auto import tqdm
 
-from datasets import load_dataset
+from datasets import concatenate_datasets, DatasetDict, load_dataset
 import transformers as T
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 
@@ -17,7 +17,17 @@ from utils import load_yaml
 
 def main(config):
     # data
-    raw_data = load_dataset(config["data_path"], cache_dir=config["cache_dir"])['train']
+    if isinstance(config["data_path"], list) and len(config["data_path"]) > 1:
+        raw_datasets = []
+        for data_path in config['data_path']:
+            _ds = load_dataset(data_path, cache_dir=config["cache_dir"])['train']
+            raw_datasets.append(_ds)
+            print(f"Loaded `{data_path}`. The dataset size is {len(_ds)}")
+        raw_data = concatenate_datasets(raw_datasets)
+    else:
+        raw_data = load_dataset(config["data_path"], cache_dir=config["cache_dir"])['train']
+    print(f"Dataset size is {len(raw_data)}")
+
     # tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
         config["tokenizer"]["tokenizer_name_or_path"], use_fast=config["tokenizer"].get("use_fast", False),
@@ -61,15 +71,16 @@ def main(config):
     data = processed_data.map(
         make_text_field,
         batched=False,
-        remove_columns=["instruction", "input", "output"]
+        remove_columns=["instruction", "input", "output", "index", "category", "id"]
     )
+    print(f"Finish making text field")
 
     if config["trainer"] == "unmasked":
         dataset = SFTDataset(data, tokenizer)
     elif config["trainer"] == "masked":
         dataset = MaskedSFTDataset(data, tokenizer)
     elif config['trainer'] == 'text':
-        cache_name = config["data_path"].replace("/", "-")
+        cache_name = os.path.basename(training_args.output_dir)
         dataset = TextDataset(data, tokenizer, config['max_text_len'], cache_name=cache_name)
         print("Load TextDataset")
 
