@@ -61,10 +61,11 @@ def main(config):
                 instruction=example['instruction'], input=example['input'], response=example[output_field_name])
         return example
 
-    data = raw_data.map(
+    column_names = list(raw_dataset["train"].features)
+    text_dataset = raw_dataset.map(
         make_text_field,
-        batched=False,
-        remove_columns=["instruction", "input", "output", "index", "category", "id"]
+        batched=False,  # TODO: enable batched=True
+        remove_columns=column_names,
     )
     print(f"Finish making text field")
 
