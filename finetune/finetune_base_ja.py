@@ -17,16 +17,24 @@ from utils import load_yaml
 
 def main(config):
     # data
-    if isinstance(config["data_path"], list) and len(config["data_path"]) > 1:
+    if isinstance(config["data_path"], list):
+        # load multiple datasets
         raw_datasets = []
         for data_path in config['data_path']:
-            _ds = load_dataset(data_path, cache_dir=config["cache_dir"])['train']
-            raw_datasets.append(_ds)
-            print(f"Loaded `{data_path}`. The dataset size is {len(_ds)}")
-        raw_data = concatenate_datasets(raw_datasets)
+            ds = load_dataset(data_path, cache_dir=config['cache_dir'])['train']
+            print(f"Loaded `{data_path}`. The dataset size is {len(ds)}")
+            ds = ds.train_test_split(test_size=(1 - config['train_size']), seed=config.get("seed", 42))
+            raw_datasets.append(ds)
+
+        # concatenate the multiple datasets
+        raw_dataset = DatasetDict()
+        for split in ['train', 'test']:
+            raw_dataset[split] = concatenate_datasets([dataset[split] for dataset in raw_datasets])
     else:
-        raw_data = load_dataset(config["data_path"], cache_dir=config["cache_dir"])['train']
-    print(f"Dataset size is {len(raw_data)}")
+        raw_dataset = load_dataset(config["data_path"], cache_dir=config["cache_dir"])['train']
+        raw_dataset = raw_dataset.train_test_split(test_size=(1 - config['train_size']), seed=config.get("seed", 42))
+    print(f"Train set: {len(raw_dataset['train'])}")
+    print(f"Test set: {len(raw_dataset['test'])}")
 
     # tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
@@ -61,22 +69,22 @@ def main(config):
     print(f"Finish making text field")
 
     if config["trainer"] == "unmasked":
-        dataset = SFTDataset(data, tokenizer)
+        text_dataset['train'] = SFTDataset(text_dataset['train'], tokenizer)
+        text_dataset['test'] = SFTDataset(text_dataset['test'], tokenizer)
     elif config["trainer"] == "masked":
-        dataset = MaskedSFTDataset(data, tokenizer)
+        text_dataset['train'] = MaskedSFTDataset(text_dataset['train'], tokenizer)
+        text_dataset['test'] = MaskedSFTDataset(text_dataset['test'], tokenizer)
     elif config['trainer'] == 'text':
         cache_name = os.path.basename(training_args.output_dir)
-        dataset = TextDataset(data, tokenizer, config['max_text_len'], cache_name=cache_name)
-        print("Load TextDataset")
-
-    train_size = int(config['train_size'] * len(dataset))
-    train_dataset, val_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
+        text_dataset['train'] = TextDataset(text_dataset['train'], tokenizer, config['max_text_len'], cache_name=cache_name)
+        text_dataset['test'] = TextDataset(text_dataset['test'], tokenizer, config['max_text_len'], cache_name=cache_name)
+        print("Loaded TextDataset")
 
     trainer = Trainer(
         model=model, 
         args=training_args, 
-        train_dataset=train_dataset,
-        eval_dataset=val_dataset, 
+        train_dataset=text_dataset['train'],
+        eval_dataset=text_dataset['test'],
         data_collator=lambda data: {
             'input_ids': torch.stack([f[0] for f in data]),
             'attention_mask': torch.stack([f[1] for f in data]),
