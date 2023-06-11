@@ -81,6 +81,7 @@ def main(config):
         text_dataset['test'] = TextDataset(text_dataset['test'], tokenizer, config['max_text_len'], cache_name=cache_name)
         print("Loaded TextDataset")
 
+    model.config.use_cache = False
     trainer = Trainer(
         model=model, 
         args=training_args, 
@@ -93,7 +94,7 @@ def main(config):
         }
     )
     print("Start training...")
-    trainer.train()
+    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
 
 if __name__ == "__main__":
